@@ -1,15 +1,14 @@
-// FideliQR FULL V1 - Sistema de Fidelización
+// FideliQR Cliente - Sistema de Fidelización
 // Deploy: Neon (PostgreSQL) + Vercel
-// Modelo: Negocio tiene UN QR, cliente escanea
+// Modelo: Cada cliente tiene SU QR, el negocio escanea
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider  = "postgresql"
+  provider  = "sqlite"
   url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
 }
 
 // Configuración del Negocio
@@ -47,9 +46,10 @@ model Usuario {
   updatedAt    DateTime  @updatedAt
 }
 
-// Clientes registrados por el dueño
+// Clientes con QR propio
 model Cliente {
   id               String     @id @default(cuid())
+  codigoQR         String     @unique  // Código único de 8 caracteres
   email            String     @unique
   nombre           String
   telefono         String?
@@ -58,6 +58,8 @@ model Cliente {
   premiosCanjeados Int        @default(0)
   activo           Boolean    @default(true)
   notas            String?
+  qrEnviado        Boolean    @default(false)
+  fechaEnvioQR     DateTime?
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
 
@@ -66,7 +68,7 @@ model Cliente {
   cobranzas  Cobranza[]
 }
 
-// Registro de visitas/compras
+// Registro de visitas (escaneadas por el negocio)
 model Visita {
   id            String   @id @default(cuid())
   clienteId     String
@@ -74,8 +76,7 @@ model Visita {
   puntosGanados Int      @default(1)
   monto         Float?
   concepto      String?
-  dispositivoId String?
-  ip            String?
+  escaneadoPor  String?  // ID del usuario que escaneó
   createdAt     DateTime @default(now())
 
   @@index([clienteId])

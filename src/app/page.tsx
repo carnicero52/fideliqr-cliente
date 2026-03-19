@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { useState, useEffect } from 'react'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -22,61 +22,34 @@ interface Negocio {
 interface Cliente {
   id: string
   nombre: string
-  email: string | null
+  email: string
   puntos: number
   totalVisitas: number
-}
-
-interface Progreso {
-  puntosActuales: number
-  puntosParaPremio: number
-  puntosFaltantes: number
-  porcentaje: number
-  premiosDisponibles: number
-}
-
-interface DatosPublicos {
-  negocio: Negocio
-  cliente: Cliente | null
-  progreso: Progreso | null
+  codigoQR: string
 }
 
 export default function PanelPublico() {
-  const [datos, setDatos] = useState<DatosPublicos | null>(null)
-  const [clienteId, setClienteId] = useState<string>('')
-  const [identificador, setIdentificador] = useState('')
+  const [negocio, setNegocio] = useState<Negocio | null>(null)
+  const [cliente, setCliente] = useState<Cliente | null>(null)
   const [loading, setLoading] = useState(true)
-  const [registrando, setRegistrando] = useState(false)
+  const [identificador, setIdentificador] = useState('')
   const [mensaje, setMensaje] = useState<{ tipo: 'exito' | 'error'; texto: string } | null>(null)
-  const [tiempoRestante, setTiempoRestante] = useState<number | null>(null)
 
-  const cargarDatos = useCallback(async () => {
+  useEffect(() => {
+    cargarNegocio()
+  }, [])
+
+  const cargarNegocio = async () => {
     try {
-      const url = clienteId ? `/api/publico?clienteId=${clienteId}` : '/api/publico'
-      const res = await fetch(url)
+      const res = await fetch('/api/publico')
       const data = await res.json()
-      setDatos(data)
+      setNegocio(data.negocio)
     } catch (error) {
-      console.error('Error al cargar datos:', error)
+      console.error('Error al cargar negocio:', error)
     } finally {
       setLoading(false)
     }
-  }, [clienteId])
-
-  useEffect(() => {
-    cargarDatos()
-    const interval = setInterval(() => {
-      if (clienteId) cargarDatos()
-    }, 10000)
-    return () => clearInterval(interval)
-  }, [clienteId, cargarDatos])
-
-  useEffect(() => {
-    if (tiempoRestante && tiempoRestante > 0) {
-      const timer = setTimeout(() => setTiempoRestante(tiempoRestante - 1), 1000)
-      return () => clearTimeout(timer)
-    }
-  }, [tiempoRestante])
+  }
 
   const buscarCliente = async () => {
     if (!identificador.trim()) {
@@ -86,19 +59,15 @@ export default function PanelPublico() {
 
     setLoading(true)
     try {
-      const res = await fetch('/api/clientes')
-      const clientes = await res.json()
-      
-      const termino = identificador.trim().toLowerCase()
-      const cliente = clientes.find((c: { email: string | null; telefono: string }) => {
-        return c.email?.toLowerCase() === termino || c.telefono === identificador.trim()
-      })
-      
-      if (cliente) {
-        setClienteId(cliente.id)
-        setMensaje({ tipo: 'exito', texto: `¡Hola ${cliente.nombre}!` })
+      const res = await fetch(`/api/clientes?buscar=${encodeURIComponent(identificador.trim())}`)
+      const data = await res.json()
+
+      if (data.length > 0) {
+        const c = data[0]
+        setCliente(c)
+        setMensaje({ tipo: 'exito', texto: `¡Hola ${c.nombre}!` })
       } else {
-        setMensaje({ tipo: 'error', texto: 'No se encontró tu cuenta. Solicita tu registro.' })
+        setMensaje({ tipo: 'error', texto: 'No se encontró tu cuenta. Solicita tu registro en el negocio.' })
       }
     } catch {
       setMensaje({ tipo: 'error', texto: 'Error al buscar tu cuenta' })
@@ -107,47 +76,11 @@ export default function PanelPublico() {
     }
   }
 
-  const marcarCompra = async () => {
-    if (!clienteId) return
-
-    setRegistrando(true)
-    try {
-      const res = await fetch('/api/publico', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          clienteId,
-          dispositivoId: navigator.userAgent.slice(0, 50)
-        })
-      })
-
-      const data = await res.json()
-
-      if (data.success) {
-        setMensaje({ 
-          tipo: 'exito', 
-          texto: `¡Compra registrada! +${data.puntosGanados} cupón. Total: ${data.puntosTotales}` 
-        })
-        cargarDatos()
-      } else if (data.tiempoRestante) {
-        setTiempoRestante(data.tiempoRestante)
-        setMensaje({ tipo: 'error', texto: `Espera ${data.tiempoRestante} segundos` })
-      } else {
-        setMensaje({ tipo: 'error', texto: data.error || 'Error al registrar' })
-      }
-    } catch {
-      setMensaje({ tipo: 'error', texto: 'Error al registrar compra' })
-    } finally {
-      setRegistrando(false)
-    }
-  }
-
-  // Formatear WhatsApp
-  const whatsappLink = datos?.negocio?.whatsapp 
-    ? `https://wa.me/${datos.negocio.whatsapp.replace(/\D/g, '')}` 
+  const whatsappLink = negocio?.whatsapp
+    ? `https://wa.me/${negocio.whatsapp.replace(/\D/g, '')}`
     : null
 
-  if (loading && !datos) {
+  if (loading && !negocio) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-400 to-teal-500">
         <div className="text-white text-xl">Cargando...</div>
@@ -158,47 +91,45 @@ export default function PanelPublico() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-400 to-teal-500 p-4 pb-8">
       <div className="max-w-md mx-auto">
-        
+
         {/* Header del Negocio */}
         <Card className="mb-4 shadow-xl overflow-hidden">
           <div className="bg-gradient-to-r from-emerald-600 to-teal-600 p-6 text-white text-center">
-            {/* Logo del negocio */}
-            {datos?.negocio?.logo ? (
-              <img 
-                src={datos.negocio.logo} 
-                alt={datos.negocio.nombre}
+            {negocio?.logo ? (
+              <img
+                src={negocio.logo}
+                alt={negocio.nombre}
                 className="w-20 h-20 mx-auto mb-3 object-contain rounded-full bg-white p-1 shadow-lg"
               />
             ) : (
               <div className="text-5xl mb-2">🏪</div>
             )}
             <h1 className="text-2xl font-bold mb-1">
-              {datos?.negocio?.nombre || 'FideliQR'}
+              {negocio?.nombre || 'FideliQR'}
             </h1>
-            {datos?.negocio?.descripcion && (
-              <p className="text-emerald-100 text-sm">{datos.negocio.descripcion}</p>
+            {negocio?.descripcion && (
+              <p className="text-emerald-100 text-sm">{negocio.descripcion}</p>
             )}
           </div>
-          
-          {/* Info del negocio */}
+
           <CardContent className="p-4 bg-white">
             <div className="grid grid-cols-2 gap-3 text-sm">
-              {datos?.negocio?.telefono && (
-                <a href={`tel:${datos.negocio.telefono}`} className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg text-blue-700 hover:bg-blue-100">
+              {negocio?.telefono && (
+                <a href={`tel:${negocio.telefono}`} className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg text-blue-700 hover:bg-blue-100">
                   <span>📞</span>
-                  <span className="truncate">{datos.negocio.telefono}</span>
+                  <span className="truncate">{negocio.telefono}</span>
                 </a>
               )}
-              {datos?.negocio?.email && (
-                <a href={`mailto:${datos.negocio.email}`} className="flex items-center gap-2 p-2 bg-purple-50 rounded-lg text-purple-700 hover:bg-purple-100">
+              {negocio?.email && (
+                <a href={`mailto:${negocio.email}`} className="flex items-center gap-2 p-2 bg-purple-50 rounded-lg text-purple-700 hover:bg-purple-100">
                   <span>📧</span>
-                  <span className="truncate">{datos.negocio.email}</span>
+                  <span className="truncate">{negocio.email}</span>
                 </a>
               )}
-              {datos?.negocio?.direccion && (
+              {negocio?.direccion && (
                 <div className="col-span-2 flex items-center gap-2 p-2 bg-gray-50 rounded-lg text-gray-700">
                   <span>📍</span>
-                  <span className="text-xs">{datos.negocio.direccion}</span>
+                  <span className="text-xs">{negocio.direccion}</span>
                 </div>
               )}
               {whatsappLink && (
@@ -219,31 +150,32 @@ export default function PanelPublico() {
           </div>
           <CardContent className="p-4 text-center bg-amber-50">
             <p className="text-xl font-bold text-amber-700 mb-2">
-              {datos?.negocio?.premioDescripcion || 'Premio Sorpresa'}
+              {negocio?.premioDescripcion || 'Premio Sorpresa'}
             </p>
             <div className="flex justify-center gap-4 text-sm">
               <div className="bg-white px-4 py-2 rounded-lg shadow">
-                <span className="text-emerald-600 font-bold text-lg">{datos?.negocio?.puntosPorVisita || 1}</span>
-                <span className="text-gray-500 ml-1">cupón/compra</span>
+                <span className="text-emerald-600 font-bold text-lg">{negocio?.puntosPorVisita || 1}</span>
+                <span className="text-gray-500 ml-1">punto(s)/visita</span>
               </div>
               <div className="bg-white px-4 py-2 rounded-lg shadow">
-                <span className="text-purple-600 font-bold text-lg">{datos?.negocio?.puntosParaPremio || 10}</span>
+                <span className="text-purple-600 font-bold text-lg">{negocio?.puntosParaPremio || 10}</span>
                 <span className="text-gray-500 ml-1">para canjear</span>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {!clienteId && (
+        {/* Buscar mi cuenta */}
+        {!cliente && (
           <Card className="mb-4 shadow-xl">
             <CardContent className="p-6">
               <h2 className="text-lg font-semibold mb-2 text-center text-gray-700">
-                Identifícate para continuar
+                Consulta tus puntos
               </h2>
               <p className="text-sm text-gray-500 text-center mb-4">
-                Ingresa tu email registrado
+                Ingresa tu email para ver tu progreso
               </p>
-              
+
               <div className="space-y-4">
                 <div>
                   <Label htmlFor="identificador">Email</Label>
@@ -257,7 +189,7 @@ export default function PanelPublico() {
                     className="text-center text-lg"
                   />
                 </div>
-                
+
                 <Button onClick={buscarCliente} className="w-full" size="lg">
                   🔍 Buscar mi cuenta
                 </Button>
@@ -266,117 +198,106 @@ export default function PanelPublico() {
           </Card>
         )}
 
-        {clienteId && datos?.cliente && datos?.progreso && (
-          <>
-            <Card className="mb-4 shadow-xl overflow-hidden">
-              <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-6 text-white text-center">
-                <p className="text-lg opacity-90 mb-1">¡Hola!</p>
-                <h2 className="text-2xl font-bold mb-4">{datos.cliente.nombre}</h2>
-                
-                <div className="bg-white/20 rounded-xl p-4 backdrop-blur">
-                  <div className="text-6xl font-bold">{datos.cliente.puntos}</div>
-                  <p className="text-lg opacity-90">
-                    {datos.cliente.puntos === 1 ? 'cupón acumulado' : 'cupones acumulados'}
-                  </p>
+        {/* Info del cliente */}
+        {cliente && (
+          <Card className="mb-4 shadow-xl overflow-hidden">
+            <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-6 text-white text-center">
+              <p className="text-lg opacity-90 mb-1">¡Hola!</p>
+              <h2 className="text-2xl font-bold mb-4">{cliente.nombre}</h2>
+
+              <div className="bg-white/20 rounded-xl p-4 backdrop-blur">
+                <div className="text-6xl font-bold">{cliente.puntos}</div>
+                <p className="text-lg opacity-90">
+                  {cliente.puntos === 1 ? 'punto acumulado' : 'puntos acumulados'}
+                </p>
+              </div>
+            </div>
+
+            <CardContent className="p-6">
+              <h3 className="text-lg font-semibold mb-4 text-center text-gray-700">
+                🎁 Tu código QR
+              </h3>
+
+              <div className="flex justify-center mb-4">
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(typeof window !== 'undefined' ? `${window.location.origin}/cliente/${cliente.codigoQR}` : '')}`}
+                  alt="Tu QR"
+                  className="border-4 border-gray-200 rounded-lg"
+                />
+              </div>
+
+              <p className="text-sm text-gray-500 text-center">
+                Código: <span className="font-mono font-bold text-emerald-600">{cliente.codigoQR}</span>
+              </p>
+
+              <div className="bg-emerald-50 p-4 rounded-lg mt-4">
+                <p className="text-emerald-700 font-medium text-center">
+                  Muestra este QR en tu próxima visita para acumular puntos
+                </p>
+              </div>
+
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setCliente(null)
+                  setIdentificador('')
+                  setMensaje(null)
+                }}
+                className="w-full mt-4"
+              >
+                👤 Cerrar sesión
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Instrucciones */}
+        <Card className="mb-4 shadow-xl">
+          <CardContent className="p-6">
+            <h3 className="text-lg font-semibold mb-4 text-center text-gray-700">
+              📱 ¿Cómo funciona?
+            </h3>
+
+            <div className="space-y-3">
+              <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg">
+                <span className="text-2xl">1️⃣</span>
+                <div>
+                  <p className="font-medium text-blue-700">Regístrate en el negocio</p>
+                  <p className="text-sm text-blue-600">Te damos tu código QR personal</p>
                 </div>
               </div>
-            </Card>
 
-            <Card className="mb-4 shadow-xl">
-              <CardContent className="p-6">
-                <h3 className="text-lg font-semibold mb-4 text-center text-gray-700">
-                  🎁 Progreso hacia tu premio
-                </h3>
-                
-                <div className="mb-3 text-center">
-                  <p className="text-sm text-gray-500 mb-2">
-                    Premio: <span className="font-bold text-amber-600">{datos.negocio?.premioDescripcion || 'Premio'}</span>
-                  </p>
+              <div className="flex items-start gap-3 p-3 bg-green-50 rounded-lg">
+                <span className="text-2xl">2️⃣</span>
+                <div>
+                  <p className="font-medium text-green-700">Muestra tu QR</p>
+                  <p className="text-sm text-green-600">En cada visita, presenta tu código</p>
                 </div>
-                
-                <div className="relative mb-4">
-                  <div className="h-10 bg-gray-200 rounded-full overflow-hidden shadow-inner">
-                    <div 
-                      className="h-full bg-gradient-to-r from-emerald-400 to-teal-500 transition-all duration-500 rounded-full flex items-center justify-center"
-                      style={{ width: `${Math.max(datos.progreso.porcentaje, 10)}%` }}
-                    >
-                      <span className="text-white text-sm font-bold drop-shadow">
-                        {datos.progreso.porcentaje}%
-                      </span>
-                    </div>
-                  </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-3 bg-purple-50 rounded-lg">
+                <span className="text-2xl">3️⃣</span>
+                <div>
+                  <p className="font-medium text-purple-700">Acumula puntos</p>
+                  <p className="text-sm text-purple-600">El negocio escanea y suma puntos</p>
                 </div>
+              </div>
 
-                <div className="grid grid-cols-3 gap-3 text-center">
-                  <div className="bg-emerald-50 p-4 rounded-xl border-2 border-emerald-200">
-                    <div className="text-3xl font-bold text-emerald-600">{datos.progreso.puntosActuales}</div>
-                    <div className="text-xs text-gray-500">Tienes</div>
-                  </div>
-                  <div className="bg-amber-50 p-4 rounded-xl border-2 border-amber-200">
-                    <div className="text-3xl font-bold text-amber-600">{datos.progreso.puntosFaltantes}</div>
-                    <div className="text-xs text-gray-500">Te faltan</div>
-                  </div>
-                  <div className="bg-purple-50 p-4 rounded-xl border-2 border-purple-200">
-                    <div className="text-3xl font-bold text-purple-600">{datos.progreso.puntosParaPremio}</div>
-                    <div className="text-xs text-gray-500">Meta</div>
-                  </div>
+              <div className="flex items-start gap-3 p-3 bg-amber-50 rounded-lg">
+                <span className="text-2xl">4️⃣</span>
+                <div>
+                  <p className="font-medium text-amber-700">¡Canjea tu premio!</p>
+                  <p className="text-sm text-amber-600">Al llegar a la meta, recibe tu premio</p>
                 </div>
-
-                {datos.progreso.premiosDisponibles > 0 && (
-                  <div className="mt-4 p-4 bg-gradient-to-r from-amber-100 to-yellow-100 rounded-xl text-center border-2 border-amber-300 shadow">
-                    <span className="text-3xl">🎉</span>
-                    <p className="text-xl font-bold text-amber-700 mt-2">
-                      ¡Tienes {datos.progreso.premiosDisponibles} premio(s) listo(s)!
-                    </p>
-                    <p className="text-sm text-amber-600 mt-1">Muestra esto al encargado para canjear</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="mb-4 shadow-xl border-4 border-emerald-400">
-              <CardContent className="p-6">
-                <Button
-                  onClick={marcarCompra}
-                  disabled={registrando || (tiempoRestante !== null && tiempoRestante > 0)}
-                  className="w-full text-xl py-8 font-bold"
-                  size="lg"
-                >
-                  {registrando ? (
-                    <span className="flex items-center gap-2">
-                      <span className="animate-spin">⏳</span> Registrando...
-                    </span>
-                  ) : tiempoRestante && tiempoRestante > 0 ? (
-                    `⏳ Espera ${tiempoRestante}s`
-                  ) : (
-                    '🛒 MARCAR MI COMPRA'
-                  )}
-                </Button>
-                <p className="text-center text-gray-500 text-sm mt-3">
-                  Al marcar sumas {datos.negocio?.puntosPorVisita || 1} cupón
-                </p>
-              </CardContent>
-            </Card>
-
-            <Button
-              variant="outline"
-              onClick={() => {
-                setClienteId('')
-                setIdentificador('')
-                setDatos(null)
-                setMensaje(null)
-              }}
-              className="w-full mb-4 bg-white/90"
-            >
-              👤 Cambiar usuario
-            </Button>
-          </>
-        )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {mensaje && (
           <div className={`p-4 rounded-xl mb-4 text-center font-medium shadow-lg ${
-            mensaje.tipo === 'exito' 
-              ? 'bg-green-100 text-green-700 border-2 border-green-300' 
+            mensaje.tipo === 'exito'
+              ? 'bg-green-100 text-green-700 border-2 border-green-300'
               : 'bg-red-100 text-red-700 border-2 border-red-300'
           }`}>
             {mensaje.texto}

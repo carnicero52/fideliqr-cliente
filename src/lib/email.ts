@@ -338,6 +338,152 @@ export async function enviarRecordatorioCobranzasVencidas(): Promise<number> {
 }
 
 // ============================================
+// ENVIAR QR AL CLIENTE
+// ============================================
+
+export async function enviarQRCliente(data: {
+  email: string
+  nombre: string
+  codigoQR: string
+  negocioNombre: string
+}) {
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://tudominio.com'
+  const qrUrl = `${baseUrl}/cliente/${data.codigoQR}`
+  const qrImage = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrUrl)}`
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <div style="text-align: center; padding: 20px; background: linear-gradient(135deg, #059669 0%, #0d9488 100%); border-radius: 10px;">
+        <h1 style="color: white; margin: 0;">¡Bienvenido a ${data.negocioNombre}!</h1>
+        <p style="color: #d1fae5; margin-top: 10px;">Tu tarjeta de fidelización digital</p>
+      </div>
+
+      <div style="background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; text-align: center;">
+        <h2 style="color: #1f2937;">Hola ${data.nombre}!</h2>
+        <p style="color: #6b7280;">Este es tu código QR personal para acumular puntos en cada visita.</p>
+
+        <div style="background: white; padding: 20px; border-radius: 10px; margin: 20px 0; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+          <img src="${qrImage}" alt="Tu código QR" style="width: 200px; height: 200px; margin: 0 auto;" />
+          <p style="color: #6b7280; font-size: 12px; margin-top: 10px;">Código: ${data.codigoQR}</p>
+        </div>
+
+        <div style="background: #ecfdf5; padding: 15px; border-radius: 8px; margin-top: 20px;">
+          <p style="color: #059669; margin: 0; font-weight: bold;">📱 Cómo usar tu QR:</p>
+          <ol style="color: #047857; text-align: left; margin: 10px 0; padding-left: 20px;">
+            <li>Guarda este email o captura tu QR</li>
+            <li>En tu próxima visita, muestra tu QR</li>
+            <li>El negocio lo escaneará para registrar tus puntos</li>
+          </ol>
+        </div>
+
+        <p style="color: #9ca3af; font-size: 12px; margin-top: 30px;">
+          Este email fue enviado desde ${data.negocioNombre}
+        </p>
+      </div>
+    </div>
+  `
+
+  return await enviarEmail({
+    to: data.email,
+    subject: `Tu código QR de ${data.negocioNombre}`,
+    html,
+  })
+}
+
+// ============================================
+// NOTIFICACIONES DE VISITA (Nuevo modelo)
+// ============================================
+
+export async function notificarVisitaCliente(data: {
+  clienteNombre: string
+  clienteEmail: string
+  puntosGanados: number
+  puntosTotales: number
+  puntosParaPremio: number
+  premioDescripcion: string
+  negocioNombre: string
+}): Promise<void> {
+  const premiosDisponibles = Math.floor(data.puntosTotales / data.puntosParaPremio)
+  const progreso = (data.puntosTotales % data.puntosParaPremio) / data.puntosParaPremio * 100
+
+  const subject = `🎫 ¡Gracias por tu visita a ${data.negocioNombre}!`
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #059669;">¡Hola ${data.clienteNombre}! 👋</h2>
+      <div style="background: linear-gradient(135deg, #059669, #0d9488); color: white; padding: 30px; border-radius: 15px; margin: 20px 0; text-align: center;">
+        <h3>Tu visita fue registrada</h3>
+        <p style="font-size: 48px; font-weight: bold; margin: 10px 0;">+${data.puntosGanados}</p>
+        <p style="font-size: 18px;">punto${data.puntosGanados > 1 ? 's' : ''} acumulado${data.puntosGanados > 1 ? 's' : ''}</p>
+      </div>
+
+      <div style="background: #f3f4f6; padding: 20px; border-radius: 10px;">
+        <h4 style="margin: 0 0 15px 0;">📊 Tu progreso hacia el premio</h4>
+        <div style="background: #e5e7eb; height: 20px; border-radius: 10px; overflow: hidden;">
+          <div style="background: linear-gradient(90deg, #059669, #0d9488); width: ${progreso}%; height: 100%;"></div>
+        </div>
+        <p style="text-align: center; margin-top: 10px;">
+          <strong>${data.puntosTotales}</strong> de <strong>${data.puntosParaPremio}</strong> puntos
+        </p>
+        <p style="text-align: center; color: #6b7280;">
+          🎁 Premio: ${data.premioDescripcion}
+        </p>
+      </div>
+
+      ${premiosDisponibles > 0 ? `
+        <div style="background: #fef3c7; border: 2px solid #f59e0b; padding: 20px; border-radius: 10px; margin: 20px 0; text-align: center;">
+          <p style="font-size: 24px; margin: 0;">🎉</p>
+          <p style="font-size: 18px; font-weight: bold; color: #92400e; margin: 10px 0;">
+            ¡Tienes ${premiosDisponibles} premio${premiosDisponibles > 1 ? 's' : ''} disponible${premiosDisponibles > 1 ? 's' : ''}!
+          </p>
+        </div>
+      ` : ''}
+
+      <p style="color: #6b7280; font-size: 14px; text-align: center; margin-top: 30px;">
+        Gracias por tu preferencia 💚<br>
+        <strong>${data.negocioNombre}</strong>
+      </p>
+    </div>
+  `
+
+  await enviarEmail({
+    to: data.clienteEmail,
+    subject,
+    html,
+  })
+}
+
+export async function notificarVisitaDueno(data: {
+  clienteNombre: string
+  clienteEmail: string
+  codigoQR: string
+  puntosGanados: number
+  puntosTotales: number
+}): Promise<void> {
+  const negocio = await db.negocio.findFirst()
+  if (!negocio?.email) return
+
+  const subject = `🎫 Nueva visita - ${data.clienteNombre}`
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #059669;">🎫 Nueva Visita Registrada</h2>
+      <div style="background: #f3f4f6; padding: 20px; border-radius: 10px; margin: 20px 0;">
+        <p><strong>Cliente:</strong> ${data.clienteNombre}</p>
+        <p><strong>Email:</strong> ${data.clienteEmail}</p>
+        <p><strong>Código QR:</strong> ${data.codigoQR}</p>
+        <p><strong>Puntos ganados:</strong> +${data.puntosGanados}</p>
+        <p><strong>Total puntos:</strong> ${data.puntosTotales}</p>
+      </div>
+    </div>
+  `
+
+  await enviarEmail({
+    to: negocio.email,
+    subject,
+    html,
+  })
+}
+
+// ============================================
 // BIENVENIDA
 // ============================================
 

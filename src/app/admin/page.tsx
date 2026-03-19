@@ -6,15 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-
-// Generar QR usando API externa
-const generarQRImage = (url: string): string => {
-  return `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(url)}`
-}
+import QRScanner from '@/components/QRScanner'
 
 // Types
 interface Cliente {
   id: string
+  codigoQR: string
   telefono: string
   nombre: string
   email: string | null
@@ -23,6 +20,7 @@ interface Cliente {
   premiosCanjeados: number
   activo: boolean
   notas: string | null
+  qrEnviado: boolean
   createdAt: string
   _count?: { visitas: number; canjes: number; cobranzas: number }
 }
@@ -32,7 +30,7 @@ interface Visita {
   clienteId: string
   puntosGanados: number
   createdAt: string
-  cliente: { nombre: string; telefono: string }
+  cliente: { nombre: string; telefono: string; codigoQR: string }
 }
 
 interface Cobranza {
@@ -125,7 +123,7 @@ interface Estadisticas {
   notificacionesEnviadas: number
 }
 
-type Tab = 'dashboard' | 'clientes' | 'visitas' | 'cobranzas' | 'marketing' | 'qr' | 'configuracion' | 'usuarios'
+type Tab = 'dashboard' | 'escanear' | 'clientes' | 'visitas' | 'cobranzas' | 'marketing' | 'configuracion' | 'usuarios'
 
 export default function AdminPanel() {
   // Theme
@@ -147,8 +145,11 @@ export default function AdminPanel() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
   const [mensaje, setMensaje] = useState<{ tipo: 'exito' | 'error'; texto: string } | null>(null)
   
+  // Scanner
+  const [codigoManual, setCodigoManual] = useState('')
+  
   // Form states
-  const [nuevoCliente, setNuevoCliente] = useState({ nombre: '', email: '', telefono: '', notas: '' })
+  const [nuevoCliente, setNuevoCliente] = useState({ nombre: '', email: '', telefono: '', notas: '', enviarQR: true })
   const [nuevaCobranza, setNuevaCobranza] = useState({ clienteId: '', concepto: '', monto: '', fechaVencimiento: '', enviarNotificacion: true })
   const [nuevoMarketing, setNuevoMarketing] = useState({ tipo: 'promocion', titulo: '', mensaje: '', destinatarios: 'todos' })
   const [nuevoUsuario, setNuevoUsuario] = useState({ email: '', password: '', nombre: '', rol: 'admin' })
@@ -158,6 +159,7 @@ export default function AdminPanel() {
   const [editandoConfig, setEditandoConfig] = useState<Configuracion | null>(null)
   const [editandoNotificaciones, setEditandoNotificaciones] = useState<Negocio | null>(null)
   const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [busquedaCliente, setBusquedaCliente] = useState('')
 
   // Hydration fix for theme
   useEffect(() => {
@@ -265,6 +267,59 @@ export default function AdminPanel() {
     window.location.href = '/login'
   }
 
+  // Registrar visita por código QR (escaneado por el negocio)
+  const registrarVisita = async (codigoQR: string) => {
+    if (!codigoQR.trim()) return
+
+    try {
+      const res = await fetch('/api/visitas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          codigoQR: codigoQR.trim().toUpperCase(),
+          escaneadoPor: usuarioActual?.id
+        })
+      })
+
+      const data = await res.json()
+
+      if (res.ok && data.success) {
+        setMensaje({
+          tipo: 'exito',
+          texto: `✅ ${data.cliente.nombre}: +${data.puntosGanados} puntos. Total: ${data.cliente.puntos}`
+        })
+        setCodigoManual('')
+        cargarDatos()
+      } else if (data.tiempoRestante) {
+        setMensaje({
+          tipo: 'error',
+          texto: `⏳ Espera ${data.tiempoRestante} segundos (${data.cliente?.nombre})`
+        })
+      } else {
+        setMensaje({ tipo: 'error', texto: data.error || 'Error al registrar visita' })
+      }
+    } catch {
+      setMensaje({ tipo: 'error', texto: 'Error de conexión' })
+    }
+  }
+
+  // Reenviar QR al cliente
+  const reenviarQR = async (clienteId: string) => {
+    try {
+      const res = await fetch('/api/clientes/reenviar-qr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clienteId })
+      })
+      if (res.ok) {
+        setMensaje({ tipo: 'exito', texto: 'QR reenviado por email' })
+        cargarDatos()
+      }
+    } catch {
+      setMensaje({ tipo: 'error', texto: 'Error al reenviar QR' })
+    }
+  }
+
   // Crear cliente
   const crearCliente = async () => {
     if (!nuevoCliente.nombre || !nuevoCliente.email) {
@@ -279,7 +334,7 @@ export default function AdminPanel() {
       })
       if (res.ok) {
         setMensaje({ tipo: 'exito', texto: 'Cliente creado exitosamente' })
-        setNuevoCliente({ telefono: '', nombre: '', email: '', notas: '' })
+        setNuevoCliente({ telefono: '', nombre: '', email: '', notas: '', enviarQR: true })
         cargarDatos()
       } else {
         const data = await res.json()
@@ -600,11 +655,11 @@ export default function AdminPanel() {
           <div className="flex overflow-x-auto gap-1 py-2">
             {[
               { id: 'dashboard', label: '📊 Dashboard' },
+              { id: 'escanear', label: '📷 Escanear QR' },
               { id: 'clientes', label: '👥 Clientes' },
               { id: 'visitas', label: '📋 Visitas' },
               { id: 'cobranzas', label: '💰 Cobranzas' },
               { id: 'marketing', label: '📣 Marketing' },
-              { id: 'qr', label: '📱 QR' },
               { id: 'configuracion', label: '⚙️ Config' },
               ...(usuarioActual?.rol === 'superadmin' ? [{ id: 'usuarios', label: '👤 Usuarios' }] : [])
             ].map(t => (
@@ -809,6 +864,80 @@ export default function AdminPanel() {
           </div>
         )}
 
+        {/* Escanear QR */}
+        {tab === 'escanear' && (
+          <div className="max-w-lg mx-auto space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-xl text-center">📷 Escanear QR del Cliente</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="bg-emerald-50 dark:bg-emerald-900/30 p-4 rounded-lg text-center">
+                  <p className="text-emerald-700 dark:text-emerald-300">
+                    Escanea el código QR personal del cliente para registrar su visita
+                  </p>
+                </div>
+
+                {/* Escáner de cámara */}
+                <QRScanner
+                  onScan={(codigo) => {
+                    registrarVisita(codigo)
+                  }}
+                  onError={(error) => {
+                    setMensaje({ tipo: 'error', texto: error })
+                  }}
+                />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">⌨️ Ingreso Manual</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-gray-500 mb-3 text-center">
+                  Si el QR no se puede escanear, ingresa el código manualmente:
+                </p>
+                <div className="flex gap-2">
+                  <Input
+                    value={codigoManual}
+                    onChange={(e) => setCodigoManual(e.target.value.toUpperCase())}
+                    placeholder="Ej: ABC12345"
+                    className="text-center text-xl font-mono"
+                    maxLength={8}
+                  />
+                  <Button onClick={() => registrarVisita(codigoManual)} size="lg" className="px-6">
+                    ✓ Registrar
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">👥 Clientes Recientes</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {clientes.slice(0, 10).map(c => (
+                    <div
+                      key={c.id}
+                      className="flex justify-between items-center p-2 bg-gray-50 dark:bg-slate-700 rounded cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-600"
+                      onClick={() => registrarVisita(c.codigoQR)}
+                    >
+                      <div>
+                        <span className="font-medium">{c.nombre}</span>
+                        <span className="text-xs text-gray-500 ml-2 font-mono">{c.codigoQR}</span>
+                      </div>
+                      <span className="text-emerald-600 font-bold">{c.puntos} pts</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         {/* Clientes */}
         {tab === 'clientes' && (
           <div className="space-y-6">
@@ -833,19 +962,45 @@ export default function AdminPanel() {
                     <Input value={nuevoCliente.notas} onChange={(e) => setNuevoCliente({...nuevoCliente, notas: e.target.value})} placeholder="Notas adicionales" />
                   </div>
                 </div>
-                <Button onClick={crearCliente} className="mt-4">Crear Cliente</Button>
+                <div className="flex items-center gap-4 mt-4">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={nuevoCliente.enviarQR}
+                      onChange={(e) => setNuevoCliente({...nuevoCliente, enviarQR: e.target.checked})}
+                      className="w-4 h-4"
+                    />
+                    Enviar QR por email
+                  </label>
+                  <Button onClick={crearCliente}>Crear Cliente</Button>
+                </div>
               </CardContent>
             </Card>
             <Card>
               <CardHeader><CardTitle className="text-lg">👥 Clientes Registrados ({clientes.length})</CardTitle></CardHeader>
               <CardContent>
+                <div className="mb-4">
+                  <Input
+                    placeholder="🔍 Buscar por nombre, email o código QR..."
+                    value={busquedaCliente}
+                    onChange={(e) => setBusquedaCliente(e.target.value)}
+                  />
+                </div>
                 <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {clientes.map((c) => (
-                    <div key={c.id} className="p-4 bg-gray-50 rounded-lg">
+                  {clientes
+                    .filter(c => {
+                      if (!busquedaCliente) return true
+                      const termino = busquedaCliente.toLowerCase()
+                      return c.nombre.toLowerCase().includes(termino) ||
+                             c.email?.toLowerCase().includes(termino) ||
+                             c.codigoQR?.toLowerCase().includes(termino)
+                    })
+                    .map((c) => (
+                    <div key={c.id} className="p-4 bg-gray-50 dark:bg-slate-700 rounded-lg">
                       {editandoCliente?.id === c.id ? (
                         <div className="space-y-3">
                           <div className="grid grid-cols-2 gap-2">
-                            <Input value={editandoCliente.nombre} onChange={(e) => setEditandoCliente({...editandoCliente, nombre: e.target.value})} />
+                            <Input value={editandoCliente.nombre || ''} onChange={(e) => setEditandoCliente({...editandoCliente, nombre: e.target.value})} />
                             <Input value={editandoCliente.email || ''} onChange={(e) => setEditandoCliente({...editandoCliente, email: e.target.value})} />
                           </div>
                           <div className="flex gap-2">
@@ -858,6 +1013,7 @@ export default function AdminPanel() {
                           <div>
                             <div className="font-medium">{c.nombre}</div>
                             <div className="text-sm text-gray-500">{c.email}</div>
+                            <div className="text-xs text-emerald-600 font-mono mt-1">QR: {c.codigoQR} {c.qrEnviado ? '✅' : '⚠️'}</div>
                           </div>
                           <div className="text-right">
                             <div className="text-xl font-bold text-emerald-600">{c.puntos} pts</div>
@@ -866,11 +1022,14 @@ export default function AdminPanel() {
                       )}
                       {editandoCliente?.id !== c.id && (
                         <div className="flex gap-2 mt-3 flex-wrap">
-                          <Button size="sm" variant="outline" onClick={() => setEditandoCliente(c)}>✏️ Editar</Button>
-                          <Button size="sm" variant="outline" onClick={() => agregarPuntos(c.id, 1)}>+1</Button>
+                          <Button size="sm" variant="outline" onClick={() => registrarVisita(c.codigoQR)}>+1 Visita</Button>
+                          {!c.qrEnviado && (
+                            <Button size="sm" variant="outline" onClick={() => reenviarQR(c.id)}>📧 Enviar QR</Button>
+                          )}
                           {c.puntos >= (negocio?.puntosParaPremio || 10) && (
                             <Button size="sm" onClick={() => canjearPremio(c.id)}>🎁 Canjear</Button>
                           )}
+                          <Button size="sm" variant="outline" onClick={() => setEditandoCliente(c)}>✏️</Button>
                           <Button size="sm" variant="destructive" onClick={() => eliminarCliente(c.id)}>🗑️</Button>
                         </div>
                       )}
@@ -933,32 +1092,6 @@ export default function AdminPanel() {
                       </div>
                     </div>
                   ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* QR */}
-        {tab === 'qr' && (
-          <div className="space-y-6">
-            <Card>
-              <CardHeader><CardTitle className="text-lg">📱 Código QR del Negocio</CardTitle></CardHeader>
-              <CardContent className="text-center">
-                <p className="text-gray-600 mb-6">Este es el código QR que tus clientes deben escanear para registrar sus compras.</p>
-                <div className="bg-white p-8 rounded-xl shadow-lg inline-block mb-6">
-                  <img src={generarQRImage(typeof window !== 'undefined' ? window.location.origin : '')} alt="QR" className="w-64 h-64 mx-auto" id="qr-image" />
-                </div>
-                <div className="space-y-3">
-                  <Button onClick={() => {
-                    const img = document.getElementById('qr-image') as HTMLImageElement
-                    if (img) {
-                      const link = document.createElement('a')
-                      link.href = img.src
-                      link.download = 'fideliqr-negocio.png'
-                      link.click()
-                    }
-                  }} className="w-full md:w-auto">📥 Descargar QR</Button>
                 </div>
               </CardContent>
             </Card>
