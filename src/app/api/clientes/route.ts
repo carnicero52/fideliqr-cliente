@@ -20,18 +20,12 @@ export async function GET(request: NextRequest) {
 
     let where = {}
     if (buscar) {
-      const buscarUpper = buscar.toUpperCase()
-      const buscarLower = buscar.toLowerCase()
       where = {
         OR: [
-          { email: { contains: buscarLower } },
-          { email: { contains: buscar } },
-          { email: { contains: buscarUpper } },
-          { nombre: { contains: buscarLower } },
-          { nombre: { contains: buscar } },
-          { nombre: { contains: buscarUpper } },
+          { email: { contains: buscar, mode: 'insensitive' } },
+          { nombre: { contains: buscar, mode: 'insensitive' } },
           { telefono: { contains: buscar } },
-          { codigoQR: { equals: buscarUpper } }
+          { codigoQR: { equals: buscar.toUpperCase() } }
         ]
       }
     }
