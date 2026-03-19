@@ -1,0 +1,174 @@
+// FideliQR FULL V1 - Sistema de Fidelización
+// Deploy: Neon (PostgreSQL) + Vercel
+// Modelo: Negocio tiene UN QR, cliente escanea
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// Configuración del Negocio
+model Negocio {
+  id                String   @id @default("NEG001")
+  nombre            String   @default("Mi Negocio")
+  descripcion       String?
+  logo              String?
+  telefono          String?
+  email             String?
+  direccion         String?
+  whatsapp          String?
+  puntosPorVisita   Int      @default(1)
+  puntosParaPremio  Int      @default(10)
+  premioDescripcion String?  @default("Premio Sorpresa")
+  callmebotApikey   String?
+  callmebotPhone    String?
+  telegramBotToken  String?
+  telegramChatId    String?
+  activo            Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// Usuarios administradores
+model Usuario {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  password     String
+  nombre       String
+  rol          String    @default("admin")
+  activo       Boolean   @default(true)
+  ultimoAcceso DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+// Clientes registrados por el dueño
+model Cliente {
+  id               String     @id @default(cuid())
+  email            String     @unique
+  nombre           String
+  telefono         String?
+  puntos           Int        @default(0)
+  totalVisitas     Int        @default(0)
+  premiosCanjeados Int        @default(0)
+  activo           Boolean    @default(true)
+  notas            String?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  visitas    Visita[]
+  canjes     Canje[]
+  cobranzas  Cobranza[]
+}
+
+// Registro de visitas/compras
+model Visita {
+  id            String   @id @default(cuid())
+  clienteId     String
+  cliente       Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  puntosGanados Int      @default(1)
+  monto         Float?
+  concepto      String?
+  dispositivoId String?
+  ip            String?
+  createdAt     DateTime @default(now())
+
+  @@index([clienteId])
+  @@index([createdAt])
+}
+
+// Canjes de premios
+model Canje {
+  id           String   @id @default(cuid())
+  clienteId    String
+  cliente      Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  puntosUsados Int
+  descripcion  String
+  estado       String   @default("completado")
+  createdAt    DateTime @default(now())
+
+  @@index([clienteId])
+}
+
+// Cobranzas/Pagos pendientes
+model Cobranza {
+  id               String    @id @default(cuid())
+  clienteId        String
+  cliente          Cliente   @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  concepto         String
+  monto            Float
+  fechaVencimiento DateTime?
+  estado           String    @default("pendiente")
+  notas            String?
+  fechaPago        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([clienteId])
+  @@index([estado])
+}
+
+// Campañas de Marketing
+model Marketing {
+  id            String    @id @default(cuid())
+  tipo          String
+  titulo        String
+  mensaje       String
+  destinatarios String    @default("todos")
+  estado        String    @default("pendiente")
+  enviados      Int       @default(0)
+  errores       Int       @default(0)
+  fechaEnvio    DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([estado])
+}
+
+// Historial de notificaciones
+model Notificacion {
+  id           String   @id @default(cuid())
+  tipo         String
+  destinatario String
+  asunto       String?
+  mensaje      String
+  estado       String   @default("enviado")
+  error        String?
+  createdAt    DateTime @default(now())
+
+  @@index([tipo])
+  @@index([createdAt])
+}
+
+// Configuración del sistema
+model Configuracion {
+  id                      String   @id @default("CONFIG001")
+  nombreSistema           String   @default("FideliQR")
+  tiempoMinimoEntreVisitas Int     @default(300)
+  maxVisitasDiarias       Int      @default(10)
+  notificarDueno          Boolean  @default(true)
+  notificarCliente        Boolean  @default(true)
+  autoActualizar          Boolean  @default(true)
+  intervaloActualizacion  Int      @default(10)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+}
+
+// Registro de seguridad
+model Seguridad {
+  id            String   @id @default(cuid())
+  accion        String
+  clienteId     String?
+  dispositivoId String?
+  ip            String?
+  resultado     String
+  motivo        String?
+  createdAt     DateTime @default(now())
+
+  @@index([clienteId])
+  @@index([createdAt])
+}

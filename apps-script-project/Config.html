@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <title>Configuracion</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0a0a0a;
+      color: #ffffff;
+      padding: 24px;
+    }
+    
+    .config-section {
+      background: #141414;
+      border: 1px solid #262626;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    
+    .config-section h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .config-section h3 .icon {
+      font-size: 20px;
+    }
+    
+    .form-group {
+      margin-bottom: 16px;
+    }
+    
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      color: #737373;
+      margin-bottom: 8px;
+    }
+    
+    .form-group input {
+      width: 100%;
+      padding: 12px 16px;
+      background: #1a1a1a;
+      border: 1px solid #262626;
+      border-radius: 10px;
+      color: #ffffff;
+      font-size: 14px;
+    }
+    
+    .form-group input:focus {
+      outline: none;
+      border-color: #f59e0b;
+    }
+    
+    .checkbox-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .checkbox-wrapper input {
+      width: 20px;
+      height: 20px;
+      accent-color: #f59e0b;
+    }
+    
+    .info-box {
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    
+    .info-box h4 {
+      font-size: 13px;
+      color: #f59e0b;
+      margin-bottom: 8px;
+    }
+    
+    .info-box ol {
+      font-size: 12px;
+      color: #a3a3a3;
+      padding-left: 16px;
+    }
+    
+    .info-box li {
+      margin-bottom: 4px;
+    }
+    
+    .btn {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: #0a0a0a;
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-2px);
+    }
+    
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      margin-top: 8px;
+    }
+    
+    .status.ok {
+      color: #22c55e;
+    }
+    
+    .status.error {
+      color: #ef4444;
+    }
+    
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      padding: 12px 24px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 500;
+      z-index: 1000;
+      opacity: 0;
+      transition: all 0.3s;
+    }
+    
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+    
+    .toast.success {
+      background: #22c55e;
+      color: white;
+    }
+    
+    .toast.error {
+      background: #ef4444;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <!-- TELEGRAM -->
+  <div class="config-section">
+    <h3><span class="icon">&#128172;</span> Telegram</h3>
+    
+    <div class="info-box">
+      <h4>Como configurar Telegram:</h4>
+      <ol>
+        <li>Habla con @BotFather en Telegram</li>
+        <li>Usa /newbot para crear un bot</li>
+        <li>Copia el token que te da</li>
+        <li>Cada usuario debe enviar /start a tu bot</li>
+        <li>Usa @userinfobot para obtener Chat IDs</li>
+      </ol>
+    </div>
+    
+    <div class="form-group">
+      <label>Bot Token</label>
+      <input type="text" id="telegram-token" placeholder="123456789:ABC...">
+    </div>
+    
+    <div class="checkbox-wrapper">
+      <input type="checkbox" id="telegram-activo">
+      <label for="telegram-activo" style="color: #ffffff;">Activar Telegram</label>
+    </div>
+    
+    <div class="status" id="telegram-status"></div>
+  </div>
+  
+  <!-- EMAIL -->
+  <div class="config-section">
+    <h3><span class="icon">&#9993;</span> Gmail</h3>
+    
+    <div class="info-box">
+      <h4>Email se envia con tu cuenta de Google</h4>
+      <p style="font-size: 12px; color: #a3a3a3;">
+        Los correos se enviaran desde tu cuenta de Google actual.
+        No requiere configuracion adicional.
+      </p>
+    </div>
+    
+    <div class="checkbox-wrapper">
+      <input type="checkbox" id="email-activo" checked>
+      <label for="email-activo" style="color: #ffffff;">Activar Email</label>
+    </div>
+  </div>
+  
+  <!-- HORARIO -->
+  <div class="config-section">
+    <h3><span class="icon">&#128337;</span> Horario de Envio Automatico</h3>
+    
+    <div class="form-group">
+      <label>Hora de ejecucion</label>
+      <input type="time" id="hora-ejecucion" value="09:00">
+    </div>
+    
+    <p style="font-size: 12px; color: #737373;">
+      El sistema verificara automaticamente cada hora y enviara los recordatorios pendientes.
+    </p>
+  </div>
+  
+  <!-- GUARDAR -->
+  <button class="btn btn-primary" onclick="guardarConfiguracion()">
+    Guardar Configuracion
+  </button>
+  
+  <!-- TOAST -->
+  <div class="toast" id="toast"></div>
+  
+  <script>
+    // Cargar configuracion al iniciar
+    document.addEventListener('DOMContentLoaded', function() {
+      cargarConfiguracion();
+    });
+    
+    function cargarConfiguracion() {
+      google.script.run
+        .withSuccessHandler(function(config) {
+          document.getElementById('telegram-token').value = config.telegramToken || '';
+          document.getElementById('telegram-activo').checked = config.telegramActivo || false;
+          document.getElementById('email-activo').checked = config.emailActivo !== false;
+          document.getElementById('hora-ejecucion').value = config.horaEjecucion || '09:00';
+          
+          // Mostrar estado de Telegram
+          var statusEl = document.getElementById('telegram-status');
+          if (config.telegramToken) {
+            statusEl.className = 'status ok';
+            statusEl.innerHTML = '&#10003; Token configurado';
+          } else {
+            statusEl.className = 'status error';
+            statusEl.innerHTML = '&#10007; Sin configurar';
+          }
+        })
+        .obtenerConfiguracion();
+    }
+    
+    function guardarConfiguracion() {
+      var config = {
+        telegramToken: document.getElementById('telegram-token').value,
+        telegramActivo: document.getElementById('telegram-activo').checked,
+        emailActivo: document.getElementById('email-activo').checked,
+        horaEjecucion: document.getElementById('hora-ejecucion').value
+      };
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            mostrarToast('Configuracion guardada', 'success');
+          } else {
+            mostrarToast('Error: ' + result.error, 'error');
+          }
+        })
+        .guardarConfiguracion(config);
+    }
+    
+    function mostrarToast(mensaje, tipo) {
+      var toast = document.getElementById('toast');
+      toast.textContent = mensaje;
+      toast.className = 'toast ' + tipo + ' show';
+      
+      setTimeout(function() {
+        toast.classList.remove('show');
+      }, 3000);
+    }
+  </script>
+</body>
+</html>

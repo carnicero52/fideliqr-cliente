@@ -1,0 +1,1165 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistema de Recordatorios</title>
+  <style>
+    /* ============================================ */
+    /* RESET Y VARIABLES */
+    /* ============================================ */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    :root {
+      --primary: #f59e0b;
+      --primary-dark: #d97706;
+      --bg-dark: #0a0a0a;
+      --bg-card: #141414;
+      --bg-input: #1a1a1a;
+      --text: #ffffff;
+      --text-muted: #737373;
+      --border: #262626;
+      --success: #22c55e;
+      --error: #ef4444;
+      --info: #3b82f6;
+      --telegram: #0088cc;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-dark);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    
+    /* ============================================ */
+    /* HEADER */
+    /* ============================================ */
+    .header {
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      padding: 20px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 4px 20px rgba(245, 158, 11, 0.2);
+    }
+    
+    .header-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .header-icon {
+      width: 40px;
+      height: 40px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+    
+    .header h1 {
+      font-size: 20px;
+      font-weight: 700;
+    }
+    
+    .header-subtitle {
+      font-size: 12px;
+      opacity: 0.8;
+    }
+    
+    .btn-refresh {
+      background: rgba(255,255,255,0.2);
+      border: none;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+    
+    .btn-refresh:hover {
+      background: rgba(255,255,255,0.3);
+    }
+    
+    /* ============================================ */
+    /* NAV TABS */
+    /* ============================================ */
+    .nav-tabs {
+      display: flex;
+      gap: 4px;
+      padding: 12px 24px;
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+    }
+    
+    .nav-tab {
+      padding: 10px 20px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    
+    .nav-tab:hover {
+      color: var(--text);
+      background: rgba(255,255,255,0.05);
+    }
+    
+    .nav-tab.active {
+      background: var(--primary);
+      color: var(--bg-dark);
+    }
+    
+    /* ============================================ */
+    /* MAIN CONTENT */
+    /* ============================================ */
+    .main {
+      padding: 24px;
+    }
+    
+    .section {
+      display: none;
+    }
+    
+    .section.active {
+      display: block;
+    }
+    
+    /* ============================================ */
+    /* STATS CARDS */
+    /* ============================================ */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    
+    .stat-card.warning {
+      border-color: rgba(245, 158, 11, 0.3);
+      background: rgba(245, 158, 11, 0.05);
+    }
+    
+    .stat-card.success {
+      border-color: rgba(34, 197, 94, 0.3);
+      background: rgba(34, 197, 94, 0.05);
+    }
+    
+    .stat-card.info {
+      border-color: rgba(59, 130, 246, 0.3);
+      background: rgba(59, 130, 246, 0.05);
+    }
+    
+    .stat-number {
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    
+    .stat-card.warning .stat-number { color: var(--primary); }
+    .stat-card.success .stat-number { color: var(--success); }
+    .stat-card.info .stat-number { color: var(--info); }
+    
+    .stat-label {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+    
+    /* ============================================ */
+    /* TOOLBAR */
+    /* ============================================ */
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      gap: 16px;
+    }
+    
+    .search-box {
+      flex: 1;
+      max-width: 400px;
+      position: relative;
+    }
+    
+    .search-box input {
+      width: 100%;
+      padding: 12px 16px 12px 44px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-size: 14px;
+    }
+    
+    .search-box input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    
+    .search-icon {
+      position: absolute;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+    }
+    
+    .btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: var(--bg-dark);
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+    }
+    
+    .btn-success {
+      background: rgba(34, 197, 94, 0.1);
+      color: var(--success);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+    
+    .btn-success:hover {
+      background: rgba(34, 197, 94, 0.2);
+    }
+    
+    /* ============================================ */
+    /* RECORDATORIOS LIST */
+    /* ============================================ */
+    .recordatorios-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    
+    .recordatorio-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      transition: all 0.2s;
+    }
+    
+    .recordatorio-card:hover {
+      border-color: var(--primary);
+    }
+    
+    .recordatorio-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+    
+    .recordatorio-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .recordatorio-nombre {
+      font-size: 16px;
+      font-weight: 600;
+    }
+    
+    .badge {
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    
+    .badge-pending {
+      background: rgba(245, 158, 11, 0.1);
+      color: var(--primary);
+    }
+    
+    .badge-sent {
+      background: rgba(34, 197, 94, 0.1);
+      color: var(--success);
+    }
+    
+    .badge-today {
+      background: rgba(59, 130, 246, 0.1);
+      color: var(--info);
+    }
+    
+    .recordatorio-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    
+    .recordatorio-meta span {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .recordatorio-actions {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .btn-icon {
+      width: 36px;
+      height: 36px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+    
+    .btn-send {
+      background: rgba(34, 197, 94, 0.1);
+      color: var(--success);
+    }
+    
+    .btn-send:hover {
+      background: rgba(34, 197, 94, 0.2);
+    }
+    
+    .btn-edit {
+      background: rgba(245, 158, 11, 0.1);
+      color: var(--primary);
+    }
+    
+    .btn-edit:hover {
+      background: rgba(245, 158, 11, 0.2);
+    }
+    
+    .btn-delete {
+      background: rgba(239, 68, 68, 0.1);
+      color: var(--error);
+    }
+    
+    .btn-delete:hover {
+      background: rgba(239, 68, 68, 0.2);
+    }
+    
+    /* ============================================ */
+    /* MODAL */
+    /* ============================================ */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.8);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 20px;
+    }
+    
+    .modal-overlay.active {
+      display: flex;
+    }
+    
+    .modal {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      width: 100%;
+      max-width: 500px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    
+    .modal-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .modal-header h2 {
+      font-size: 18px;
+      font-weight: 600;
+    }
+    
+    .modal-close {
+      width: 32px;
+      height: 32px;
+      border: none;
+      background: rgba(255,255,255,0.05);
+      color: var(--text-muted);
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 18px;
+    }
+    
+    .modal-close:hover {
+      background: rgba(255,255,255,0.1);
+      color: var(--text);
+    }
+    
+    .modal-body {
+      padding: 24px;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    
+    .form-group input,
+    .form-group textarea {
+      width: 100%;
+      padding: 12px 16px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-size: 14px;
+    }
+    
+    .form-group input:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    
+    .form-group textarea {
+      resize: vertical;
+      min-height: 100px;
+    }
+    
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    
+    .checkbox-group {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      cursor: pointer;
+    }
+    
+    .checkbox-item input {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--primary);
+    }
+    
+    .modal-footer {
+      padding: 16px 24px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+    }
+    
+    .btn-secondary {
+      background: var(--bg-input);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    
+    .btn-secondary:hover {
+      background: var(--border);
+    }
+    
+    /* ============================================ */
+    /* HISTORIAL */
+    /* ============================================ */
+    .historial-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .historial-item {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .historial-info {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    
+    .historial-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .historial-icon.email {
+      background: rgba(59, 130, 246, 0.1);
+      color: var(--info);
+    }
+    
+    .historial-icon.telegram {
+      background: rgba(0, 136, 204, 0.1);
+      color: var(--telegram);
+    }
+    
+    .historial-destinatario {
+      font-weight: 500;
+    }
+    
+    .historial-fecha {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    
+    .historial-status {
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    
+    .historial-status.success {
+      background: rgba(34, 197, 94, 0.1);
+      color: var(--success);
+    }
+    
+    .historial-status.error {
+      background: rgba(239, 68, 68, 0.1);
+      color: var(--error);
+    }
+    
+    /* ============================================ */
+    /* EMPTY STATE */
+    /* ============================================ */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+    }
+    
+    .empty-icon {
+      width: 64px;
+      height: 64px;
+      background: rgba(245, 158, 11, 0.1);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 16px;
+      font-size: 28px;
+    }
+    
+    .empty-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    
+    .empty-text {
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+    
+    /* ============================================ */
+    /* LOADING */
+    /* ============================================ */
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-muted);
+    }
+    
+    /* ============================================ */
+    /* TOAST */
+    /* ============================================ */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 16px 24px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 500;
+      z-index: 2000;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.3s;
+    }
+    
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+    
+    .toast.success {
+      background: var(--success);
+      color: white;
+    }
+    
+    .toast.error {
+      background: var(--error);
+      color: white;
+    }
+    
+    /* ============================================ */
+    /* RESPONSIVE */
+    /* ============================================ */
+    @media (max-width: 768px) {
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      
+      .toolbar {
+        flex-direction: column;
+      }
+      
+      .search-box {
+        max-width: 100%;
+      }
+      
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-title">
+      <div class="header-icon">&#128276;</div>
+      <div>
+        <h1>Recordatorios</h1>
+        <div class="header-subtitle">Sistema Multicanal - Google Apps Script</div>
+      </div>
+    </div>
+    <button class="btn-refresh" onclick="cargarDatos()">
+      &#128260; Actualizar
+    </button>
+  </header>
+  
+  <!-- NAV TABS -->
+  <nav class="nav-tabs">
+    <button class="nav-tab active" onclick="showSection('recordatorios')">Recordatorios</button>
+    <button class="nav-tab" onclick="showSection('historial')">Historial</button>
+  </nav>
+  
+  <!-- MAIN -->
+  <main class="main">
+    <!-- SECTION: RECORDATORIOS -->
+    <section id="section-recordatorios" class="section active">
+      <!-- STATS -->
+      <div class="stats-grid" id="stats-grid">
+        <div class="stat-card">
+          <div class="stat-number" id="stat-total">0</div>
+          <div class="stat-label">Total</div>
+        </div>
+        <div class="stat-card warning">
+          <div class="stat-number" id="stat-pendientes">0</div>
+          <div class="stat-label">Pendientes</div>
+        </div>
+        <div class="stat-card success">
+          <div class="stat-number" id="stat-enviados">0</div>
+          <div class="stat-label">Enviados</div>
+        </div>
+        <div class="stat-card info">
+          <div class="stat-number" id="stat-hoy">0</div>
+          <div class="stat-label">Para Hoy</div>
+        </div>
+      </div>
+      
+      <!-- TOOLBAR -->
+      <div class="toolbar">
+        <div class="search-box">
+          <span class="search-icon">&#128269;</span>
+          <input type="text" id="search-input" placeholder="Buscar recordatorios..." oninput="filtrarRecordatorios()">
+        </div>
+        <button class="btn btn-primary" onclick="abrirModalNuevo()">
+          &#43; Nuevo Recordatorio
+        </button>
+      </div>
+      
+      <!-- LISTA -->
+      <div class="recordatorios-list" id="recordatorios-list">
+        <div class="loading">Cargando...</div>
+      </div>
+    </section>
+    
+    <!-- SECTION: HISTORIAL -->
+    <section id="section-historial" class="section">
+      <div class="historial-list" id="historial-list">
+        <div class="loading">Cargando...</div>
+      </div>
+    </section>
+  </main>
+  
+  <!-- MODAL -->
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="modal-title">Nuevo Recordatorio</h2>
+        <button class="modal-close" onclick="cerrarModal()">&#10005;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="recordatorio-id">
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label>Nombre *</label>
+            <input type="text" id="input-nombre" placeholder="Juan Perez">
+          </div>
+          <div class="form-group">
+            <label>Email *</label>
+            <input type="email" id="input-email" placeholder="correo@ejemplo.com">
+          </div>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label>Fecha *</label>
+            <input type="date" id="input-fecha">
+          </div>
+          <div class="form-group">
+            <label>Hora</label>
+            <input type="time" id="input-hora" value="09:00">
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label>Telegram ID (opcional)</label>
+          <input type="text" id="input-telegram" placeholder="123456789">
+        </div>
+        
+        <div class="form-group">
+          <label>Asunto *</label>
+          <input type="text" id="input-asunto" placeholder="Recordatorio importante">
+        </div>
+        
+        <div class="form-group">
+          <label>Mensaje *</label>
+          <textarea id="input-mensaje" placeholder="Escribe el mensaje del recordatorio..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="cerrarModal()">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarRecordatorio()">Guardar</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- TOAST -->
+  <div class="toast" id="toast"></div>
+  
+  <script>
+    // ============================================
+    // VARIABLES GLOBALES
+    // ============================================
+    var datosActuales = {
+      recordatorios: [],
+      historial: [],
+      config: {}
+    };
+    
+    // ============================================
+    // INICIALIZACION
+    // ============================================
+    document.addEventListener('DOMContentLoaded', function() {
+      cargarDatos();
+    });
+    
+    // ============================================
+    // CARGAR DATOS
+    // ============================================
+    function cargarDatos() {
+      google.script.run
+        .withSuccessHandler(function(data) {
+          datosActuales = data;
+          actualizarStats(data.stats);
+          renderizarRecordatorios(data.recordatorios);
+        })
+        .obtenerDatosDashboard();
+        
+      google.script.run
+        .withSuccessHandler(function(data) {
+          datosActuales.historial = data;
+          renderizarHistorial(data);
+        })
+        .obtenerHistorial();
+    }
+    
+    // ============================================
+    // ACTUALIZAR STATS
+    // ============================================
+    function actualizarStats(stats) {
+      document.getElementById('stat-total').textContent = stats.total;
+      document.getElementById('stat-pendientes').textContent = stats.pendientes;
+      document.getElementById('stat-enviados').textContent = stats.enviados;
+      document.getElementById('stat-hoy').textContent = stats.hoy;
+    }
+    
+    // ============================================
+    // RENDERIZAR RECORDATORIOS
+    // ============================================
+    function renderizarRecordatorios(lista) {
+      var container = document.getElementById('recordatorios-list');
+      
+      if (lista.length === 0) {
+        container.innerHTML = 
+          '<div class="empty-state">' +
+            '<div class="empty-icon">&#128276;</div>' +
+            '<div class="empty-title">No hay recordatorios</div>' +
+            '<div class="empty-text">Crea tu primer recordatorio haciendo clic en "Nuevo Recordatorio"</div>' +
+          '</div>';
+        return;
+      }
+      
+      var html = '';
+      for (var i = 0; i < lista.length; i++) {
+        var r = lista[i];
+        var fechaFormateada = formatearFecha(r.fecha);
+        var esHoy = verificarEsHoy(r.fecha);
+        
+        html += 
+          '<div class="recordatorio-card">' +
+            '<div class="recordatorio-header">' +
+              '<div class="recordatorio-title">' +
+                '<span class="recordatorio-nombre">' + escapeHtml(r.nombre) + '</span>' +
+                '<span class="badge ' + (r.estado === 'pendiente' ? 'badge-pending' : 'badge-sent') + '">' + r.estado + '</span>' +
+                (esHoy ? '<span class="badge badge-today">Hoy</span>' : '') +
+              '</div>' +
+              '<div class="recordatorio-actions">' +
+                '<button class="btn-icon btn-send" onclick="enviarRecordatorio(\'' + r.id + '\')" title="Enviar">&#128233;</button>' +
+                '<button class="btn-icon btn-edit" onclick="editarRecordatorio(\'' + r.id + '\')" title="Editar">&#9998;</button>' +
+                '<button class="btn-icon btn-delete" onclick="eliminarRecordatorio(\'' + r.id + '\')" title="Eliminar">&#128465;</button>' +
+              '</div>' +
+            '</div>' +
+            '<div class="recordatorio-meta">' +
+              '<span>&#9993; ' + escapeHtml(r.email) + '</span>' +
+              '<span>&#128197; ' + fechaFormateada + '</span>' +
+              (r.telegramId ? '<span style="color:#0088cc;">&#128172; Telegram</span>' : '') +
+            '</div>' +
+          '</div>';
+      }
+      
+      container.innerHTML = html;
+    }
+    
+    // ============================================
+    // RENDERIZAR HISTORIAL
+    // ============================================
+    function renderizarHistorial(lista) {
+      var container = document.getElementById('historial-list');
+      
+      if (lista.length === 0) {
+        container.innerHTML = 
+          '<div class="empty-state">' +
+            '<div class="empty-icon">&#128337;</div>' +
+            '<div class="empty-title">No hay historial</div>' +
+            '<div class="empty-text">Los envios apareceran aqui</div>' +
+          '</div>';
+        return;
+      }
+      
+      var html = '';
+      for (var i = 0; i < lista.length; i++) {
+        var h = lista[i];
+        var fechaFormateada = formatearFechaHora(h.fecha);
+        
+        html += 
+          '<div class="historial-item">' +
+            '<div class="historial-info">' +
+              '<div class="historial-icon ' + h.canal + '">' +
+                (h.canal === 'email' ? '&#9993;' : '&#128172;') +
+              '</div>' +
+              '<div>' +
+                '<div class="historial-destinatario">' + escapeHtml(h.destinatario) + '</div>' +
+                '<div class="historial-fecha">' + fechaFormateada + '</div>' +
+              '</div>' +
+            '</div>' +
+            '<span class="historial-status ' + (h.estado === 'enviado' ? 'success' : 'error') + '">' +
+              (h.estado === 'enviado' ? 'Enviado' : 'Error') +
+            '</span>' +
+          '</div>';
+      }
+      
+      container.innerHTML = html;
+    }
+    
+    // ============================================
+    // FILTRAR RECORDATORIOS
+    // ============================================
+    function filtrarRecordatorios() {
+      var busqueda = document.getElementById('search-input').value.toLowerCase();
+      var filtrados = [];
+      
+      for (var i = 0; i < datosActuales.recordatorios.length; i++) {
+        var r = datosActuales.recordatorios[i];
+        if (r.nombre.toLowerCase().indexOf(busqueda) !== -1 ||
+            r.email.toLowerCase().indexOf(busqueda) !== -1 ||
+            r.asunto.toLowerCase().indexOf(busqueda) !== -1) {
+          filtrados.push(r);
+        }
+      }
+      
+      renderizarRecordatorios(filtrados);
+    }
+    
+    // ============================================
+    // SECCIONES
+    // ============================================
+    function showSection(seccion) {
+      var tabs = document.querySelectorAll('.nav-tab');
+      var sections = document.querySelectorAll('.section');
+      
+      for (var i = 0; i < tabs.length; i++) {
+        tabs[i].classList.remove('active');
+      }
+      for (var i = 0; i < sections.length; i++) {
+        sections[i].classList.remove('active');
+      }
+      
+      event.target.classList.add('active');
+      document.getElementById('section-' + seccion).classList.add('active');
+    }
+    
+    // ============================================
+    // MODAL
+    // ============================================
+    function abrirModalNuevo() {
+      document.getElementById('modal-title').textContent = 'Nuevo Recordatorio';
+      document.getElementById('recordatorio-id').value = '';
+      document.getElementById('input-nombre').value = '';
+      document.getElementById('input-email').value = '';
+      document.getElementById('input-fecha').value = '';
+      document.getElementById('input-hora').value = '09:00';
+      document.getElementById('input-telegram').value = '';
+      document.getElementById('input-asunto').value = '';
+      document.getElementById('input-mensaje').value = '';
+      document.getElementById('modal-overlay').classList.add('active');
+    }
+    
+    function editarRecordatorio(id) {
+      var r = null;
+      for (var i = 0; i < datosActuales.recordatorios.length; i++) {
+        if (datosActuales.recordatorios[i].id === id) {
+          r = datosActuales.recordatorios[i];
+          break;
+        }
+      }
+      
+      if (!r) return;
+      
+      document.getElementById('modal-title').textContent = 'Editar Recordatorio';
+      document.getElementById('recordatorio-id').value = r.id;
+      document.getElementById('input-nombre').value = r.nombre;
+      document.getElementById('input-email').value = r.email;
+      document.getElementById('input-fecha').value = formatearFechaInput(r.fecha);
+      document.getElementById('input-hora').value = r.hora || '09:00';
+      document.getElementById('input-telegram').value = r.telegramId || '';
+      document.getElementById('input-asunto').value = r.asunto;
+      document.getElementById('input-mensaje').value = r.mensaje;
+      document.getElementById('modal-overlay').classList.add('active');
+    }
+    
+    function cerrarModal() {
+      document.getElementById('modal-overlay').classList.remove('active');
+    }
+    
+    // ============================================
+    // GUARDAR RECORDATORIO
+    // ============================================
+    function guardarRecordatorio() {
+      var recordatorio = {
+        id: document.getElementById('recordatorio-id').value,
+        nombre: document.getElementById('input-nombre').value,
+        email: document.getElementById('input-email').value,
+        fecha: document.getElementById('input-fecha').value,
+        hora: document.getElementById('input-hora').value,
+        telegramId: document.getElementById('input-telegram').value,
+        asunto: document.getElementById('input-asunto').value,
+        mensaje: document.getElementById('input-mensaje').value,
+        activo: true
+      };
+      
+      if (!recordatorio.nombre || !recordatorio.email || !recordatorio.fecha || !recordatorio.asunto || !recordatorio.mensaje) {
+        mostrarToast('Por favor completa todos los campos obligatorios', 'error');
+        return;
+      }
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            mostrarToast('Recordatorio guardado correctamente', 'success');
+            cerrarModal();
+            cargarDatos();
+          } else {
+            mostrarToast('Error: ' + result.error, 'error');
+          }
+        })
+        .guardarRecordatorio(recordatorio);
+    }
+    
+    // ============================================
+    // ELIMINAR RECORDATORIO
+    // ============================================
+    function eliminarRecordatorio(id) {
+      if (!confirm('¿Estas seguro de eliminar este recordatorio?')) {
+        return;
+      }
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            mostrarToast('Recordatorio eliminado', 'success');
+            cargarDatos();
+          } else {
+            mostrarToast('Error: ' + result.error, 'error');
+          }
+        })
+        .eliminarRecordatorio(id);
+    }
+    
+    // ============================================
+    // ENVIAR RECORDATORIO
+    // ============================================
+    function enviarRecordatorio(id) {
+      mostrarToast('Enviando recordatorio...', 'success');
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          var emailOk = result.email && result.email.success;
+          var telegramOk = result.telegram && result.telegram.success;
+          
+          if (emailOk || telegramOk) {
+            mostrarToast('Recordatorio enviado correctamente', 'success');
+          } else {
+            var error = '';
+            if (result.email && result.email.error) error += 'Email: ' + result.email.error + ' ';
+            if (result.telegram && result.telegram.error) error += 'Telegram: ' + result.telegram.error;
+            mostrarToast('Error: ' + error, 'error');
+          }
+          cargarDatos();
+        })
+        .enviarRecordatorioPorId(id);
+    }
+    
+    // ============================================
+    // UTILIDADES
+    // ============================================
+    function formatearFecha(fecha) {
+      if (!fecha) return '';
+      var d = new Date(fecha);
+      var dia = d.getDate().toString().padStart(2, '0');
+      var mes = (d.getMonth() + 1).toString().padStart(2, '0');
+      var anio = d.getFullYear();
+      return dia + '/' + mes + '/' + anio;
+    }
+    
+    function formatearFechaInput(fecha) {
+      if (!fecha) return '';
+      var d = new Date(fecha);
+      var mes = (d.getMonth() + 1).toString().padStart(2, '0');
+      var dia = d.getDate().toString().padStart(2, '0');
+      return d.getFullYear() + '-' + mes + '-' + dia;
+    }
+    
+    function formatearFechaHora(fecha) {
+      if (!fecha) return '';
+      var d = new Date(fecha);
+      return d.toLocaleString('es-MX');
+    }
+    
+    function verificarEsHoy(fecha) {
+      if (!fecha) return false;
+      var hoy = new Date();
+      var d = new Date(fecha);
+      return hoy.toDateString() === d.toDateString();
+    }
+    
+    function escapeHtml(texto) {
+      if (!texto) return '';
+      var div = document.createElement('div');
+      div.textContent = texto;
+      return div.innerHTML;
+    }
+    
+    function mostrarToast(mensaje, tipo) {
+      var toast = document.getElementById('toast');
+      toast.textContent = mensaje;
+      toast.className = 'toast ' + tipo + ' show';
+      
+      setTimeout(function() {
+        toast.classList.remove('show');
+      }, 3000);
+    }
+  </script>
+</body>
+</html>
