@@ -9,13 +9,13 @@ const JWT_SECRET = process.env.JWT_SECRET || 'fideliqr-secret-key-2024'
 export async function GET(request: NextRequest) {
   try {
     const token = request.cookies.get('auth-token')?.value
-    
+
     if (!token) {
       return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
     }
-    
+
     const decoded = jwt.verify(token, JWT_SECRET) as { userId: string }
-    
+
     const usuario = await db.usuario.findUnique({
       where: { id: decoded.userId },
       select: {
@@ -26,11 +26,11 @@ export async function GET(request: NextRequest) {
         activo: true,
       }
     })
-    
+
     if (!usuario || !usuario.activo) {
       return NextResponse.json({ error: 'Usuario no válido' }, { status: 401 })
     }
-    
+
     return NextResponse.json({ usuario })
   } catch {
     return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
@@ -41,39 +41,77 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const { email, password } = await request.json()
-    
+
     if (!email || !password) {
       return NextResponse.json({ error: 'Email y contraseña son requeridos' }, { status: 400 })
     }
-    
+
+    // 🆕 AUTO-CREAR USUARIO ADMIN SI NO EXISTE NINGUNO
+    const totalUsuarios = await db.usuario.count()
+
+    if (totalUsuarios === 0) {
+      // Crear usuario superadmin
+      const hashedPassword = await bcrypt.hash('admin123', 10)
+      await db.usuario.create({
+        data: {
+          email: 'admin@fideliqr.com',
+          password: hashedPassword,
+          nombre: 'Administrador',
+          rol: 'superadmin',
+          activo: true
+        }
+      })
+
+      // Crear negocio por defecto
+      await db.negocio.create({
+        data: {
+          id: 'NEG001',
+          nombre: 'Mi Negocio',
+          puntosPorVisita: 1,
+          puntosParaPremio: 10,
+          premioDescripcion: 'Premio Sorpresa'
+        }
+      }).catch(() => {})
+
+      // Crear configuración por defecto
+      await db.configuracion.create({
+        data: {
+          id: 'CONFIG001',
+          nombreSistema: 'FideliQR',
+          tiempoMinimoEntreVisitas: 300,
+          maxVisitasDiarias: 10
+        }
+      }).catch(() => {})
+    }
+
     const usuario = await db.usuario.findUnique({
       where: { email: email.toLowerCase() }
     })
-    
+
     if (!usuario || !usuario.activo) {
       return NextResponse.json({ error: 'Credenciales incorrectas' }, { status: 401 })
     }
-    
+
     const passwordValid = await bcrypt.compare(password, usuario.password)
-    
+
     if (!passwordValid) {
       return NextResponse.json({ error: 'Credenciales incorrectas' }, { status: 401 })
     }
-    
+
     // Actualizar último acceso
     await db.usuario.update({
       where: { id: usuario.id },
       data: { ultimoAcceso: new Date() }
     })
-    
+
     // Crear token
     const token = jwt.sign(
       { userId: usuario.id, email: usuario.email, rol: usuario.rol },
       JWT_SECRET,
       { expiresIn: '7d' }
     )
-    
-    const response = NextResponse.json({ 
+
+    const response = NextResponse.json({
       success: true,
       usuario: {
         id: usuario.id,
@@ -82,14 +120,14 @@ export async function POST(request: NextRequest) {
         rol: usuario.rol
       }
     })
-    
+
     response.cookies.set('auth-token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 7 // 7 días
     })
-    
+
     return response
   } catch (error) {
     console.error('Error en login:', error)
@@ -101,35 +139,35 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const token = request.cookies.get('auth-token')?.value
-    
+
     if (!token) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
-    
+
     const decoded = jwt.verify(token, JWT_SECRET) as { rol: string }
-    
+
     if (decoded.rol !== 'superadmin') {
       return NextResponse.json({ error: 'No tienes permisos para crear usuarios' }, { status: 403 })
     }
-    
+
     const { email, password, nombre, rol } = await request.json()
-    
+
     if (!email || !password || !nombre) {
       return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 })
     }
-    
+
     // Verificar si ya existe
     const existente = await db.usuario.findUnique({
       where: { email: email.toLowerCase() }
     })
-    
+
     if (existente) {
       return NextResponse.json({ error: 'El email ya está registrado' }, { status: 400 })
     }
-    
+
     // Hashear contraseña
     const hashedPassword = await bcrypt.hash(password, 10)
-    
+
     const usuario = await db.usuario.create({
       data: {
         email: email.toLowerCase(),
@@ -138,8 +176,8 @@ export async function PUT(request: NextRequest) {
         rol: rol || 'admin'
       }
     })
-    
-    return NextResponse.json({ 
+
+    return NextResponse.json({
       success: true,
       usuario: {
         id: usuario.id,
