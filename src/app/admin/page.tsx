@@ -133,7 +133,7 @@ type Tab = 'dashboard' | 'escanear' | 'clientes' | 'visitas' | 'cobranzas' | 'ma
 export default function AdminPanel() {
   // Theme
   const { theme, setTheme, resolvedTheme } = useTheme()
-  const [ mounted, setMounted] = useState(false)
+  const [isMounted, setIsMounted] = useState(false)
   
   // State
   const [tab, setTab] = useState<Tab>('dashboard')
@@ -144,11 +144,11 @@ export default function AdminPanel() {
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [visitas, setVisitas] = useState<Visita[]>([])
   const [cobranzas, setCobranzas] = useState<Cobranza[]>([])
-  const [ marketing, setMarketing] = useState<Marketing[]>([])
+  const [marketingItems, setMarketingItems] = useState<Marketing[]>([])
   const [negocio, setNegocio] = useState<Negocio | null>(null)
   const [configuracion, setConfiguracion] = useState<Configuracion | null>(null)
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
-  const [ mensaje, setMensaje] = useState<{ tipo: 'exito' | 'error'; texto: string } | null>(null)
+  const [mensajeTexto, setMensajeTexto] = useState<{ tipo: 'exito' | 'error'; texto: string } | null>(null)
 
   // Scanner inline
   const [codigoManual, setCodigoManual] = useState('')
@@ -228,7 +228,7 @@ export default function AdminPanel() {
 
   // Hydration fix for theme
   useEffect(() => {
-    setMounted(true)
+    setIsMounted(true)
   }, [])
 
   // Verificar autenticación
@@ -311,15 +311,19 @@ export default function AdminPanel() {
 
   // Cargar marketing
   const cargarMarketing = async () => {
-    const res = await fetch('/api/marketing')
-    const data = await res.json()
-    setMarketing(data)
+    try {
+      const res = await fetch('/api/marketing')
+      const data = await res.json()
+      setMarketingItems(Array.isArray(data) ? data : [])
+    } catch (error) {
+      console.error('Error cargando marketing:', error)
+      setMarketingItems([])
+    }
   }
-
   // Cambiar tab
   const cambiarTab = (nuevoTab: Tab) => {
     setTab(nuevoTab)
-    setMensaje(null)
+    setMensajeTexto(null)
     if (nuevoTab === 'visitas') cargarVisitas()
     if (nuevoTab === 'cobranzas') cargarCobranzas()
     if (nuevoTab === 'marketing') cargarMarketing()
@@ -349,22 +353,22 @@ export default function AdminPanel() {
       const data = await res.json()
 
       if (res.ok && data.success) {
-        setMensaje({
+        setMensajeTexto({
           tipo: 'exito',
           texto: `✅ ${data.cliente.nombre}: +${data.puntosGanados} puntos. Total: ${data.cliente.puntos}`
         })
         setCodigoManual('')
         cargarDatos()
       } else if (data.tiempoRestante) {
-        setMensaje({
+        setMensajeTexto({
           tipo: 'error',
           texto: `⏳ Espera ${data.tiempoRestante} segundos (${data.cliente?.nombre})`
         })
       } else {
-        setMensaje({ tipo: 'error', texto: data.error || 'Error al registrar visita' })
+        setMensajeTexto({ tipo: 'error', texto: data.error || 'Error al registrar visita' })
       }
     } catch {
-      setMensaje({ tipo: 'error', texto: 'Error de conexión' })
+      setMensajeTexto({ tipo: 'error', texto: 'Error de conexión' })
     }
   }
 
@@ -377,18 +381,18 @@ export default function AdminPanel() {
         body: JSON.stringify({ clienteId })
       })
       if (res.ok) {
-        setMensaje({ tipo: 'exito', texto: 'QR reenviado por email' })
+        setMensajeTexto({ tipo: 'exito', texto: 'QR reenviado por email' })
         cargarDatos()
       }
     } catch {
-      setMensaje({ tipo: 'error', texto: 'Error al reenviar QR' })
+      setMensajeTexto({ tipo: 'error', texto: 'Error al reenviar QR' })
     }
   }
 
   // Crear cliente
   const crearCliente = async () => {
     if (!nuevoCliente.nombre || !nuevoCliente.email) {
-      setMensaje({ tipo: 'error', texto: 'Nombre y email son obligatorios' })
+      setMensajeTexto({ tipo: 'error', texto: 'Nombre y email son obligatorios' })
       return
     }
     try {
@@ -398,15 +402,15 @@ export default function AdminPanel() {
         body: JSON.stringify(nuevoCliente)
       })
       if (res.ok) {
-        setMensaje({ tipo: 'exito', texto: 'Cliente creado exitosamente' })
+        setMensajeTexto({ tipo: 'exito', texto: 'Cliente creado exitosamente' })
         setNuevoCliente({ telefono: '', nombre: '', email: '', notas: '', enviarQR: true })
         cargarDatos()
       } else {
         const data = await res.json()
-        setMensaje({ tipo: 'error', texto: data.error || 'Error al crear cliente' })
+        setMensajeTexto({ tipo: 'error', texto: data.error || 'Error al crear cliente' })
       }
     } catch {
-      setMensaje({ tipo: 'error', texto: 'Error de conexión' })
+      setMensajeTexto({ tipo: 'error', texto: 'Error de conexión' })
     }
   }
 
@@ -420,12 +424,12 @@ export default function AdminPanel() {
         body: JSON.stringify(editandoCliente)
       })
       if (res.ok) {
-        setMensaje({ tipo: 'exito', texto: 'Cliente actualizado' })
+        setMensajeTexto({ tipo: 'exito', texto: 'Cliente actualizado' })
         setEditandoCliente(null)
         cargarDatos()
       }
     } catch {
-      setMensaje({ tipo: 'error', texto: 'Error al actualizar' })
+      setMensajeTexto({ tipo: 'error', texto: 'Error al actualizar' })
     }
   }
 
@@ -434,17 +438,17 @@ export default function AdminPanel() {
     if (!confirm('¿Eliminar este cliente?')) return
     try {
       await fetch(`/api/clientes/${id}`, { method: 'DELETE' })
-      setMensaje({ tipo: 'exito', texto: 'Cliente eliminado' })
+      setMensajeTexto({ tipo: 'exito', texto: 'Cliente eliminado' })
       cargarDatos()
     } catch {
-      setMensaje({ tipo: 'error', texto: 'Error al eliminar' })
+      setMensajeTexto({ tipo: 'error', texto: 'Error al eliminar' })
     }
   }
 
   // Crear cobranza
   const crearCobranza = async () => {
     if (!nuevaCobranza.clienteId || !nuevaCobranza.monto || !nuevaCobranza.concepto) {
-      setMensaje({ tipo: 'error', texto: 'Completa todos los campos obligatorios' })
+      setMensajeTexto({ tipo: 'error', texto: 'Completa todos los campos obligatorios' })
       return
     }
     try {
@@ -454,12 +458,12 @@ export default function AdminPanel() {
         body: JSON.stringify({ ...nuevaCobranza, monto: parseFloat(nuevaCobranza.monto) })
       })
       if (res.ok) {
-        setMensaje({ tipo: 'exito', texto: 'Cobranza creada' + (nuevaCobranza.enviarNotificacion ? ' y notificación enviada' : '') })
+        setMensajeTexto({ tipo: 'exito', texto: 'Cobranza creada' + (nuevaCobranza.enviarNotificacion ? ' y notificación enviada' : '') })
         setNuevaCobranza({ clienteId: '', concepto: '', monto: '', fechaVencimiento: '', enviarNotificacion: false })
         cargarCobranzas()
       }
     } catch {
-      setMensaje({ tipo: 'error', texto: 'Error al crear cobranza' })
+      setMensajeTexto({ tipo: 'error', texto: 'Error al crear cobranza' })
     }
   }
 
@@ -473,12 +477,12 @@ export default function AdminPanel() {
       })
       const data = await res.json()
       if (res.ok) {
-        setMensaje({ tipo: 'exito', texto: 'Recordatorio enviado por email' })
+        setMensajeTexto({ tipo: 'exito', texto: 'Recordatorio enviado por email' })
       } else {
-        setMensaje({ tipo: 'error', texto: data.error || 'Error al enviar recordatorio' })
+        setMensajeTexto({ tipo: 'error', texto: data.error || 'Error al enviar recordatorio' })
       }
     } catch {
-      setMensaje({ tipo: 'error', texto: 'Error al enviar recordatorio' })
+      setMensajeTexto({ tipo: 'error', texto: 'Error al enviar recordatorio' })
     }
   }
 
@@ -490,23 +494,23 @@ export default function AdminPanel() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ estado: 'pagado' })
       })
-      setMensaje({ tipo: 'exito', texto: 'Cobranza marcada como pagada' })
+      setMensajeTexto({ tipo: 'exito', texto: 'Cobranza marcada como pagada' })
       cargarCobranzas()
       cargarDatos()
     } catch {
-      setMensaje({ tipo: 'error', texto: 'Error al actualizar' })
+      setMensajeTexto({ tipo: 'error', texto: 'Error al actualizar' })
     }
   }
 
   // Crear campaña
   const crearCampana = async () => {
     if (!nuevoMarketing.titulo || !nuevoMarketing.mensaje) {
-      setMensaje({ tipo: 'error', texto: 'Título y mensaje son obligatorios' })
+      setMensajeTexto({ tipo: 'error', texto: 'Título y mensajeTexto son obligatorios' })
       return
     }
     try {
       const esProgramado = nuevoMarketing.fechaProgramada && new Date(nuevoMarketing.fechaProgramada) > new Date()
-      setMensaje({ tipo: 'exito', texto: esProgramado ? 'Programando campaña...' : 'Enviando campaña...' })
+      setMensajeTexto({ tipo: 'exito', texto: esProgramado ? 'Programando campaña...' : 'Enviando campaña...' })
       const res = await fetch('/api/marketing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -515,17 +519,17 @@ export default function AdminPanel() {
       const data = await res.json()
       if (res.ok) {
         if (data.programado) {
-          setMensaje({ tipo: 'exito', texto: `Campaña programada para ${new Date(nuevoMarketing.fechaProgramada).toLocaleString('es-ES')}` })
+          setMensajeTexto({ tipo: 'exito', texto: `Campaña programada para ${new Date(nuevoMarketing.fechaProgramada).toLocaleString('es-ES')}` })
         } else {
-          setMensaje({ tipo: 'exito', texto: `Campaña enviada a ${data.enviados} clientes` + (data.errores > 0 ? ` (${data.errores} errores)` : '') })
+          setMensajeTexto({ tipo: 'exito', texto: `Campaña enviada a ${data.enviados} clientes` + (data.errores > 0 ? ` (${data.errores} errores)` : '') })
         }
         setNuevoMarketing({ tipo: 'promocion', titulo: '', mensaje: '', destinatarios: 'todos', fechaProgramada: '', repetir: '' })
         cargarMarketing()
       } else {
-        setMensaje({ tipo: 'error', texto: data.error || 'Error al crear campaña' })
+        setMensajeTexto({ tipo: 'error', texto: data.error || 'Error al crear campaña' })
       }
     } catch {
-      setMensaje({ tipo: 'error', texto: 'Error al crear campaña' })
+      setMensajeTexto({ tipo: 'error', texto: 'Error al crear campaña' })
     }
   }
 
@@ -539,12 +543,12 @@ export default function AdminPanel() {
         body: JSON.stringify(editandoNegocio)
       })
       if (res.ok) {
-        setMensaje({ tipo: 'exito', texto: 'Configuración guardada' })
+        setMensajeTexto({ tipo: 'exito', texto: 'Configuración guardada' })
         setNegocio(editandoNegocio)
         setEditandoNegocio(null)
       }
     } catch {
-      setMensaje({ tipo: 'error', texto: 'Error al guardar' })
+      setMensajeTexto({ tipo: 'error', texto: 'Error al guardar' })
     }
   }
 
@@ -558,12 +562,12 @@ export default function AdminPanel() {
         body: JSON.stringify(editandoConfig)
       })
       if (res.ok) {
-        setMensaje({ tipo: 'exito', texto: 'Configuración guardada' })
+        setMensajeTexto({ tipo: 'exito', texto: 'Configuración guardada' })
         setConfiguracion(editandoConfig)
         setEditandoConfig(null)
       }
     } catch {
-      setMensaje({ tipo: 'error', texto: 'Error al guardar configuración' })
+      setMensajeTexto({ tipo: 'error', texto: 'Error al guardar configuración' })
     }
   }
 
@@ -577,12 +581,12 @@ export default function AdminPanel() {
         body: JSON.stringify(editandoNotificaciones)
       })
       if (res.ok) {
-        setMensaje({ tipo: 'exito', texto: 'Notificaciones guardadas' })
+        setMensajeTexto({ tipo: 'exito', texto: 'Notificaciones guardadas' })
         setNegocio(editandoNotificaciones)
         setEditandoNotificaciones(null)
       }
     } catch {
-      setMensaje({ tipo: 'error', texto: 'Error al guardar notificaciones' })
+      setMensajeTexto({ tipo: 'error', texto: 'Error al guardar notificaciones' })
     }
   }
 
@@ -596,19 +600,19 @@ export default function AdminPanel() {
         body: JSON.stringify(editandoNegocio)
       })
       if (res.ok) {
-        setMensaje({ tipo: 'exito', texto: 'Información guardada' })
+        setMensajeTexto({ tipo: 'exito', texto: 'Información guardada' })
         setNegocio(editandoNegocio)
         setEditandoNegocio(null)
       }
     } catch {
-      setMensaje({ tipo: 'error', texto: 'Error al guardar' })
+      setMensajeTexto({ tipo: 'error', texto: 'Error al guardar' })
     }
   }
 
   // Crear usuario
   const crearUsuario = async () => {
     if (!nuevoUsuario.email || !nuevoUsuario.password || !nuevoUsuario.nombre) {
-      setMensaje({ tipo: 'error', texto: 'Todos los campos son obligatorios' })
+      setMensajeTexto({ tipo: 'error', texto: 'Todos los campos son obligatorios' })
       return
     }
     try {
@@ -618,15 +622,15 @@ export default function AdminPanel() {
         body: JSON.stringify(nuevoUsuario)
       })
       if (res.ok) {
-        setMensaje({ tipo: 'exito', texto: 'Usuario creado exitosamente' })
+        setMensajeTexto({ tipo: 'exito', texto: 'Usuario creado exitosamente' })
         setNuevoUsuario({ email: '', password: '', nombre: '', rol: 'admin' })
         cargarUsuarios()
       } else {
         const data = await res.json()
-        setMensaje({ tipo: 'error', texto: data.error || 'Error al crear usuario' })
+        setMensajeTexto({ tipo: 'error', texto: data.error || 'Error al crear usuario' })
       }
     } catch {
-      setMensaje({ tipo: 'error', texto: 'Error al crear usuario' })
+      setMensajeTexto({ tipo: 'error', texto: 'Error al crear usuario' })
     }
   }
 
@@ -635,10 +639,10 @@ export default function AdminPanel() {
     if (!confirm('¿Eliminar este usuario?')) return
     try {
       await fetch(`/api/usuarios?id=${id}`, { method: 'DELETE' })
-      setMensaje({ tipo: 'exito', texto: 'Usuario eliminado' })
+      setMensajeTexto({ tipo: 'exito', texto: 'Usuario eliminado' })
       cargarUsuarios()
     } catch {
-      setMensaje({ tipo: 'error', texto: 'Error al eliminar usuario' })
+      setMensajeTexto({ tipo: 'error', texto: 'Error al eliminar usuario' })
     }
   }
 
@@ -654,7 +658,7 @@ export default function AdminPanel() {
       })
       cargarDatos()
     } catch {
-      setMensaje({ tipo: 'error', texto: 'Error al agregar puntos' })
+      setMensajeTexto({ tipo: 'error', texto: 'Error al agregar puntos' })
     }
   }
 
@@ -668,13 +672,13 @@ export default function AdminPanel() {
       })
       const data = await res.json()
       if (data.success) {
-        setMensaje({ tipo: 'exito', texto: `Premio canjeado. Puntos restantes: ${data.puntosRestantes}` })
+        setMensajeTexto({ tipo: 'exito', texto: `Premio canjeado. Puntos restantes: ${data.puntosRestantes}` })
         cargarDatos()
       } else {
-        setMensaje({ tipo: 'error', texto: data.error })
+        setMensajeTexto({ tipo: 'error', texto: data.error })
       }
     } catch {
-      setMensaje({ tipo: 'error', texto: 'Error al canjear' })
+      setMensajeTexto({ tipo: 'error', texto: 'Error al canjear' })
     }
   }
 
@@ -1265,7 +1269,7 @@ export default function AdminPanel() {
                           const file = e.target.files?.[0]
                           if (file) {
                             if (file.size > 5 * 1024 * 1024) {
-                              setMensaje({ tipo: 'error', texto: 'La imagen debe ser menor a 5MB' })
+                              setMensajeTexto({ tipo: 'error', texto: 'La imagen debe ser menor a 5MB' })
                               return
                             }
                             const reader = new FileReader()
@@ -1392,12 +1396,12 @@ export default function AdminPanel() {
                             body: JSON.stringify(editandoPremios)
                           })
                           if (res.ok) {
-                            setMensaje({ tipo: 'exito', texto: 'Premios guardados' })
+                            setMensajeTexto({ tipo: 'exito', texto: 'Premios guardados' })
                             setNegocio(editandoPremios)
                             setEditandoPremios(null)
                           }
                         } catch {
-                          setMensaje({ tipo: 'error', texto: 'Error al guardar' })
+                          setMensajeTexto({ tipo: 'error', texto: 'Error al guardar' })
                         }
                       }}>💾 Guardar</Button>
                       <Button variant="outline" onClick={() => setEditandoPremios(null)}>Cancelar</Button>
@@ -1674,7 +1678,7 @@ export default function AdminPanel() {
                   </div>
                   <div className="md:col-span-2">
                     <Label>Mensaje</Label>
-                    <textarea className="w-full h-24 px-3 py-2 rounded-lg border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-800" value={nuevoMarketing.mensaje} onChange={(e) => setNuevoMarketing({...nuevoMarketing, mensaje: e.target.value})} placeholder="Escribe tu mensaje aquí..." />
+                    <textarea className="w-full h-24 px-3 py-2 rounded-lg border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-800" value={nuevoMarketing.mensaje} onChange={(e) => setNuevoMarketing({...nuevoMarketing, mensaje: e.target.value})} placeholder="Escribe tu mensajeTexto aquí..." />
                   </div>
 
                   {/* Sección de Programación */}
@@ -1778,11 +1782,11 @@ export default function AdminPanel() {
                                     body: JSON.stringify({ id: m.id, accion: 'enviar-ahora' })
                                   })
                                   if (res.ok) {
-                                    setMensaje({ tipo: 'exito', texto: 'Campaña enviada' })
+                                    setMensajeTexto({ tipo: 'exito', texto: 'Campaña enviada' })
                                     cargarMarketing()
                                   }
                                 } catch {
-                                  setMensaje({ tipo: 'error', texto: 'Error al enviar' })
+                                  setMensajeTexto({ tipo: 'error', texto: 'Error al enviar' })
                                 }
                               }}
                             >
@@ -1800,11 +1804,11 @@ export default function AdminPanel() {
                                     body: JSON.stringify({ id: m.id, accion: 'cancelar' })
                                   })
                                   if (res.ok) {
-                                    setMensaje({ tipo: 'exito', texto: 'Campaña cancelada' })
+                                    setMensajeTexto({ tipo: 'exito', texto: 'Campaña cancelada' })
                                     cargarMarketing()
                                   }
                                 } catch {
-                                  setMensaje({ tipo: 'error', texto: 'Error al cancelar' })
+                                  setMensajeTexto({ tipo: 'error', texto: 'Error al cancelar' })
                                 }
                               }}
                             >
@@ -1831,7 +1835,7 @@ export default function AdminPanel() {
                       <p className="text-gray-500">No hay campañas creadas</p>
                     </div>
                   ) : (
-                    marketing.map((m) => (
+                   marketingItems.map((m) => (
                       <div key={m.id} className={`p-4 rounded-lg border ${
                         m.estado === 'enviado' ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' :
                         m.estado === 'cancelado' ? 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 opacity-60' :
