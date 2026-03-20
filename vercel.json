@@ -9,5 +9,7 @@
       "path": "/api/cron?secret=recordatorios-cron-2024",
       "schedule": "0 9 * * *"
     }
-  ]
+  ],
+  "version": 2,
+  "forceNewDeployment": true
 }
