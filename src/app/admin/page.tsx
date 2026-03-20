@@ -2,11 +2,14 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useTheme } from 'next-themes'
+import dynamic from 'next/dynamic'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import QRScanner from '@/components/QRScanner'
+
+// Importar QRScanner dinámicamente para evitar problemas de SSR
+const QRScanner = dynamic(() => import('@/components/QRScanner'), { ssr: false })
 
 // Types
 interface Cliente {
