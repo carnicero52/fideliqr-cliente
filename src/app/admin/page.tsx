@@ -144,11 +144,11 @@ export default function AdminPanel() {
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [visitas, setVisitas] = useState<Visita[]>([])
   const [cobranzas, setCobranzas] = useState<Cobranza[]>([])
-  const [marketingItems, setMarketingItems] = useState<Marketing[]>([])
+  const [[mmarketingItems, setMarketingItems] = useState<Marketing[]>([])
   const [negocio, setNegocio] = useState<Negocio | null>(null)
   const [configuracion, setConfiguracion] = useState<Configuracion | null>(null)
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
-  const [mensajeTexto, setMensajeTexto] = useState<{ tipo: 'exito' | 'error'; texto: string } | null>(null)
+  const [[mmensajeTexto, setMensajeTexto] = useState<{ tipo: 'exito' | 'error'; texto: string } | null>(null)
 
   // Scanner inline
   const [codigoManual, setCodigoManual] = useState('')
@@ -1725,13 +1725,13 @@ export default function AdminPanel() {
             <div className="grid md:grid-cols-3 gap-4">
               <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
                 <CardContent className="p-4 text-center">
-                  <div className="text-3xl font-bold">{marketing.filter(m => m.estado === 'programado').length}</div>
+                  <div className="text-3xl font-bold">{marketingItems.filter(m => m.estado === 'programado').length}</div>
                   <div className="text-sm opacity-90">Programadas</div>
                 </CardContent>
               </Card>
               <Card className="bg-gradient-to-br from-green-500 to-emerald-600 text-white">
                 <CardContent className="p-4 text-center">
-                  <div className="text-3xl font-bold">{marketing.filter(m => m.estado === 'enviado').length}</div>
+                  <div className="text-3xl font-bold">{marketingItems.filter(m => m.estado === 'enviado').length}</div>
                   <div className="text-sm opacity-90">Enviadas</div>
                 </CardContent>
               </Card>
@@ -1744,19 +1744,19 @@ export default function AdminPanel() {
             </div>
 
             {/* Campañas Programadas */}
-            {marketing.filter(m => m.estado === 'programado').length > 0 && (
+            {marketingItems.filter(m => m.estado === 'programado').length > 0 && (
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center gap-2">
                     📅 Campañas Programadas
                     <span className="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full">
-                      {marketing.filter(m => m.estado === 'programado').length}
+                      {marketingItems.filter(m => m.estado === 'programado').length}
                     </span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3 max-h-64 overflow-y-auto">
-                    {marketing.filter(m => m.estado === 'programado').map((m) => (
+                    {marketingItems.filter(m => m.estado === 'programado').map((m) => (
                       <div key={m.id} className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
                         <div className="flex justify-between items-start">
                           <div>
@@ -1829,7 +1829,7 @@ export default function AdminPanel() {
               <CardHeader><CardTitle className="text-lg">📋 Historial de Campañas</CardTitle></CardHeader>
               <CardContent>
                 <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {marketing.length === 0 ? (
+                  {marketingItems.length === 0 ? (
                     <div className="text-center py-8">
                       <div className="text-5xl mb-3">📭</div>
                       <p className="text-gray-500">No hay campañas creadas</p>
