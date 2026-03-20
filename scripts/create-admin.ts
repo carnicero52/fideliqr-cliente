@@ -4,28 +4,33 @@ import bcrypt from 'bcryptjs'
 const prisma = new PrismaClient()
 
 async function main() {
-  console.log('🌱 Ejecutando seed...')
+  console.log('Verificando usuario admin...')
 
-  // Crear usuario admin si no existe
-  const adminExiste = await prisma.usuario.findUnique({
+  const existe = await prisma.usuario.findUnique({
     where: { email: 'admin@fideliqr.com' }
   })
 
-  if (!adminExiste) {
-    const hashedPassword = await bcrypt.hash('admin123', 10)
-    await prisma.usuario.create({
-      data: {
-        email: 'admin@fideliqr.com',
-        password: hashedPassword,
-        nombre: 'Administrador',
-        rol: 'superadmin',
-        activo: true
-      }
-    })
-    console.log('✅ Usuario admin creado: admin@fideliqr.com / admin123')
-  } else {
-    console.log('ℹ️ Usuario admin ya existe')
+  if (existe) {
+    console.log('✅ Usuario admin ya existe')
+    return
   }
+
+  console.log('Creando usuario admin...')
+  const hashedPassword = await bcrypt.hash('admin123', 10)
+
+  await prisma.usuario.create({
+    data: {
+      email: 'admin@fideliqr.com',
+      password: hashedPassword,
+      nombre: 'Administrador',
+      rol: 'superadmin',
+      activo: true
+    }
+  })
+
+  console.log('✅ Usuario admin creado!')
+  console.log('📧 Email: admin@fideliqr.com')
+  console.log('🔑 Password: admin123')
 
   // Crear negocio si no existe
   const negocioExiste = await prisma.negocio.findFirst()
@@ -56,10 +61,5 @@ async function main() {
 }
 
 main()
-  .catch((e) => {
-    console.error('Error en seed:', e)
-    process.exit(1)
-  })
-  .finally(async () => {
-    await prisma.$disconnect()
-  })
+  .catch(console.error)
+  .finally(() => prisma.$disconnect())
