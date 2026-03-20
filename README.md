@@ -44,17 +44,17 @@ Sistema de Fidelización de Clientes con código QR - Panel Público y Administr
 # Inicializar repositorio
 git init
 git add .
-git commit -m "Initial commit - FideliQR FULL V1"
+git commit -m "Initial commit - FideliQR-cliente"
 
 # Crear repositorio en GitHub y subir
-git remote add origin https://github.com/TU_USUARIO/fideliqr-full-v1.git
+git remote add origin https://github.com/TU_USUARIO/fideliqr-cliente.git
 git push -u origin main
 ```
 
 ### Paso 3: Desplegar en Vercel
 
 1. Ve a [vercel.com](https://vercel.com) y conecta tu cuenta de GitHub
-2. Importa el repositorio `fideliqr-full-v1`
+2. Importa el repositorio `fideliqr-cliente`
 3. Configura las variables de entorno:
 
 ```
@@ -85,8 +85,8 @@ O desde el dashboard de Vercel → Settings → Environment Variables → ejecut
 
 ```bash
 # Clonar repositorio
-git clone https://github.com/TU_USUARIO/fideliqr-full-v1.git
-cd fideliqr-full-v1
+git clone https://github.com/TU_USUARIO/fideliqr-cliente.git
+cd fideliqr-cliente
 
 # Instalar dependencias
 bun install
