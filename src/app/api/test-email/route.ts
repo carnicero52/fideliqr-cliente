@@ -13,7 +13,7 @@ export async function GET() {
     }
 
     // Verificar conexión con detalles del error
-    let conexionError = null
+    let conexionError: string | null = null
     let conexionOk = false
 
     if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
@@ -38,7 +38,7 @@ export async function GET() {
     }
 
     // Intentar enviar un email de prueba
-    let envioResultado = null
+    let envioResultado: { success: boolean; mensaje?: string; error?: string } | null = null
     if (conexionOk && process.env.SMTP_USER) {
       try {
         const transporter = nodemailer.createTransport({

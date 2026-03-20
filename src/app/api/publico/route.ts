@@ -128,7 +128,6 @@ export async function POST(request: NextRequest) {
       data: {
         clienteId: data.clienteId,
         puntosGanados,
-        dispositivoId: data.dispositivoId,
       }
     })
     
