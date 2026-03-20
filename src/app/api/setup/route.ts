@@ -2,23 +2,33 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import bcrypt from 'bcryptjs'
 
-// POST - Crear usuario inicial (solo si no existe ningún usuario)
 export async function POST() {
   try {
-    // Verificar si ya existe algún usuario
-    const usuariosExistentes = await db.usuario.count()
+    console.log('Iniciando configuración del sistema...')
 
-    if (usuariosExistentes > 0) {
+    // Verificar conexión
+    await db.$queryRaw`SELECT 1`
+    console.log('✅ Conexión a BD OK')
+
+    // Verificar si ya existe el admin
+    const existe = await db.usuario.findUnique({
+      where: { email: 'admin@fideliqr.com' }
+    })
+
+    if (existe) {
       return NextResponse.json({
-        error: 'Ya existen usuarios. Usa el login normal.',
-        usuarios: usuariosExistentes
-      }, { status: 400 })
+        success: true,
+        message: 'El sistema ya estaba configurado',
+        credentials: {
+          email: 'admin@fideliqr.com',
+          password: 'admin123'
+        }
+      })
     }
 
-    // Crear usuario superadmin inicial
+    // Crear usuario admin
     const hashedPassword = await bcrypt.hash('admin123', 10)
-
-    const usuario = await db.usuario.create({
+    await db.usuario.create({
       data: {
         email: 'admin@fideliqr.com',
         password: hashedPassword,
@@ -27,57 +37,48 @@ export async function POST() {
         activo: true
       }
     })
+    console.log('✅ Usuario admin creado')
 
-    // Crear negocio por defecto
-    await db.negocio.create({
-      data: {
-        id: 'NEG001',
-        nombre: 'Mi Negocio',
-        descripcion: 'Sistema de Fidelización',
-        puntosPorVisita: 1,
-        puntosParaPremio: 10,
-        premioDescripcion: 'Premio Sorpresa'
-      }
-    })
+    // Crear negocio
+    const negocioExiste = await db.negocio.findFirst()
+    if (!negocioExiste) {
+      await db.negocio.create({
+        data: {
+          nombre: 'Mi Negocio',
+          puntosPorVisita: 1,
+          puntosParaPremio: 10,
+          premioDescripcion: 'Premio Sorpresa'
+        }
+      })
+      console.log('✅ Negocio creado')
+    }
 
-    // Crear configuración por defecto
-    await db.configuracion.create({
-      data: {
-        id: 'CONFIG001',
-        nombreSistema: 'FideliQR',
-        tiempoMinimoEntreVisitas: 300,
-        maxVisitasDiarias: 10,
-        notificarDueno: true,
-        notificarCliente: true
-      }
-    })
+    // Crear configuración
+    const configExiste = await db.configuracion.findFirst()
+    if (!configExiste) {
+      await db.configuracion.create({
+        data: {
+          nombreSistema: 'FideliQR',
+          tiempoMinimoEntreVisitas: 300,
+          maxVisitasDiarias: 10
+        }
+      })
+      console.log('✅ Configuración creada')
+    }
 
     return NextResponse.json({
       success: true,
       message: 'Sistema configurado correctamente',
-      credenciales: {
+      credentials: {
         email: 'admin@fideliqr.com',
         password: 'admin123'
       }
     })
   } catch (error) {
     console.error('Error en setup:', error)
-    return NextResponse.json({ error: 'Error al configurar' }, { status: 500 })
-  }
-}
-
-// GET - Verificar estado del sistema
-export async function GET() {
-  try {
-    const usuarios = await db.usuario.count()
-    const negocio = await db.negocio.count()
-
     return NextResponse.json({
-      listo: usuarios > 0,
-      usuarios,
-      negocioConfigurado: negocio > 0
+      success: false,
+      error: error instanceof Error ? error.message : 'Error desconocido'
     })
-  } catch (error) {
-    return NextResponse.json({ error: 'Error de conexión a base de datos' }, { status: 500 })
   }
 }
