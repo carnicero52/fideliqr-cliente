@@ -46,12 +46,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Email y contraseña son requeridos' }, { status: 400 })
     }
 
-    // 🆕 AUTO-CREAR USUARIO ADMIN SI NO EXISTE NINGUNO
+    // AUTO-CREAR USUARIO ADMIN SI NO EXISTE NINGUNO
     const totalUsuarios = await db.usuario.count()
 
     if (totalUsuarios === 0) {
-      // Crear usuario superadmin
+      console.log('Creando usuario inicial...')
       const hashedPassword = await bcrypt.hash('admin123', 10)
+
       await db.usuario.create({
         data: {
           email: 'admin@fideliqr.com',
@@ -63,25 +64,31 @@ export async function POST(request: NextRequest) {
       })
 
       // Crear negocio por defecto
-      await db.negocio.create({
-        data: {
-          id: 'NEG001',
-          nombre: 'Mi Negocio',
-          puntosPorVisita: 1,
-          puntosParaPremio: 10,
-          premioDescripcion: 'Premio Sorpresa'
-        }
-      }).catch(() => {})
+      try {
+        await db.negocio.create({
+          data: {
+            nombre: 'Mi Negocio',
+            puntosPorVisita: 1,
+            puntosParaPremio: 10,
+            premioDescripcion: 'Premio Sorpresa'
+          }
+        })
+      } catch (e) {
+        console.log('Negocio ya existe:', e)
+      }
 
       // Crear configuración por defecto
-      await db.configuracion.create({
-        data: {
-          id: 'CONFIG001',
-          nombreSistema: 'FideliQR',
-          tiempoMinimoEntreVisitas: 300,
-          maxVisitasDiarias: 10
-        }
-      }).catch(() => {})
+      try {
+        await db.configuracion.create({
+          data: {
+            nombreSistema: 'FideliQR',
+            tiempoMinimoEntreVisitas: 300,
+            maxVisitasDiarias: 10
+          }
+        })
+      } catch (e) {
+        console.log('Configuracion ya existe:', e)
+      }
     }
 
     const usuario = await db.usuario.findUnique({
@@ -156,7 +163,6 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 })
     }
 
-    // Verificar si ya existe
     const existente = await db.usuario.findUnique({
       where: { email: email.toLowerCase() }
     })
@@ -165,7 +171,6 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'El email ya está registrado' }, { status: 400 })
     }
 
-    // Hashear contraseña
     const hashedPassword = await bcrypt.hash(password, 10)
 
     const usuario = await db.usuario.create({
