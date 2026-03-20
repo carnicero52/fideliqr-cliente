@@ -133,7 +133,7 @@ type Tab = 'dashboard' | 'escanear' | 'clientes' | 'visitas' | 'cobranzas' | 'ma
 export default function AdminPanel() {
   // Theme
   const { theme, setTheme, resolvedTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
+  const [  mounted, setMounted] = useState(false)
   
   // State
   const [tab, setTab] = useState<Tab>('dashboard')
@@ -144,11 +144,11 @@ export default function AdminPanel() {
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [visitas, setVisitas] = useState<Visita[]>([])
   const [cobranzas, setCobranzas] = useState<Cobranza[]>([])
-  const [marketing, setMarketing] = useState<Marketing[]>([])
+  const [  marketing, setMarketing] = useState<Marketing[]>([])
   const [negocio, setNegocio] = useState<Negocio | null>(null)
   const [configuracion, setConfiguracion] = useState<Configuracion | null>(null)
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
-  const [mensaje, setMensaje] = useState<{ tipo: 'exito' | 'error'; texto: string } | null>(null)
+  const [  mensaje, setMensaje] = useState<{ tipo: 'exito' | 'error'; texto: string } | null>(null)
 
   // Scanner inline
   const [codigoManual, setCodigoManual] = useState('')
