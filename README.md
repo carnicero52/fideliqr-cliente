@@ -125,7 +125,7 @@ bun run dev
 ## 📁 Estructura del Proyecto
 
 ```
-fideliqr-full-v1/
+fideliqr-cliente/
 ├── prisma/
 │   ├── schema.prisma      # Schema PostgreSQL
 │   └── seed.ts            # Datos iniciales
