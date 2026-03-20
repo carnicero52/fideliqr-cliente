@@ -215,6 +215,9 @@ export default function AdminPanel() {
   const [nuevoCliente, setNuevoCliente] = useState({ nombre: '', email: '', telefono: '', notas: '', enviarQR: true })
   const [nuevaCobranza, setNuevaCobranza] = useState({ clienteId: '', concepto: '', monto: '', fechaVencimiento: '', enviarNotificacion: false })
   const [nuevoMarketing, setNuevoMarketing] = useState({ tipo: 'promocion', titulo: '', mensaje: '', destinatarios: 'todos', fechaProgramada: '', repetir: '' })
+  useEffect(() => {
+    setNuevoMarketing({ tipo: 'promocion', titulo: '', mensaje: '', destinatarios: 'todos', fechaProgramada: '', repetir: '' })
+  }, [nuevoMarketing]);
   const [nuevoUsuario, setNuevoUsuario] = useState({ email: '', password: '', nombre: '', rol: 'admin' })
   const [editandoCliente, setEditandoCliente] = useState<Cliente | null>(null)
   const [editandoNegocio, setEditandoNegocio] = useState<Negocio | null>(null)
