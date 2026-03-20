@@ -712,7 +712,7 @@ export default function AdminPanel() {
                 className="text-white/80 hover:text-white text-sm bg-white/20 px-3 py-1 rounded-lg flex items-center gap-2"
                 title={resolvedTheme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
               >
-                {mounted && resolvedTheme === 'dark' ? '☀️ Claro' : '🌙 Oscuro'}
+                {isMounted && resolvedTheme === 'dark' ? '☀️ Claro' : '🌙 Oscuro'}
               </button>
               <span className="text-sm opacity-90">
                 {usuarioActual?.nombre} ({usuarioActual?.rol === 'superadmin' ? '⭐ Super Admin' : 'Admin'})
