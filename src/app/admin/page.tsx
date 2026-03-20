@@ -1,15 +1,12 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useTheme } from 'next-themes'
-import dynamic from 'next/dynamic'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-
-// Importar QRScanner dinámicamente para evitar problemas de SSR
-const QRScanner = dynamic(() => import('@/components/QRScanner'), { ssr: false })
+import { Html5Qrcode } from 'html5-qrcode'
 
 // Types
 interface Cliente {
@@ -147,10 +144,68 @@ export default function AdminPanel() {
   const [configuracion, setConfiguracion] = useState<Configuracion | null>(null)
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
   const [mensaje, setMensaje] = useState<{ tipo: 'exito' | 'error'; texto: string } | null>(null)
-  
-  // Scanner
+
+  // Scanner inline
   const [codigoManual, setCodigoManual] = useState('')
-  
+  const [scannerActivo, setScannerActivo] = useState(false)
+  const [scannerCargando, setScannerCargando] = useState(false)
+  const [scannerError, setScannerError] = useState<string | null>(null)
+  const scannerRef = useRef<Html5Qrcode | null>(null)
+
+  // Funciones del escáner
+  const iniciarScanner = async () => {
+    setScannerCargando(true)
+    setScannerError(null)
+    try {
+      const html5QrCode = new Html5Qrcode('qr-reader-inline')
+      scannerRef.current = html5QrCode
+
+      const cameras = await Html5Qrcode.getCameras()
+      if (!cameras || cameras.length === 0) {
+        setScannerError('No se encontró cámara')
+        setScannerCargando(false)
+        return
+      }
+
+      const backCamera = cameras.find(c =>
+        c.label.toLowerCase().includes('back') ||
+        c.label.toLowerCase().includes('trasera') ||
+        c.label.toLowerCase().includes('rear')
+      )
+
+      await html5QrCode.start(
+        backCamera?.id || cameras[0].id,
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        (text) => {
+          let code = text
+          if (text.includes('/cliente/')) {
+            code = text.split('/cliente/')[1].split(/[?#/]/)[0]
+          }
+          if (navigator.vibrate) navigator.vibrate(200)
+          registrarVisita(code.toUpperCase())
+        },
+        () => {}
+      )
+      setScannerActivo(true)
+      setScannerCargando(false)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Error de cámara'
+      setScannerError(msg)
+      setScannerCargando(false)
+    }
+  }
+
+  const detenerScanner = async () => {
+    if (scannerRef.current) {
+      try {
+        await scannerRef.current.stop()
+      } catch (e) {
+        console.error(e)
+      }
+    }
+    setScannerActivo(false)
+  }
+
   // Form states
   const [nuevoCliente, setNuevoCliente] = useState({ nombre: '', email: '', telefono: '', notas: '', enviarQR: true })
   const [nuevaCobranza, setNuevaCobranza] = useState({ clienteId: '', concepto: '', monto: '', fechaVencimiento: '', enviarNotificacion: true })
@@ -881,15 +936,46 @@ export default function AdminPanel() {
                   </p>
                 </div>
 
-                {/* Escáner de cámara */}
-                <QRScanner
-                  onScan={(codigo) => {
-                    registrarVisita(codigo)
-                  }}
-                  onError={(error) => {
-                    setMensaje({ tipo: 'error', texto: error })
+                {/* Escáner de cámara inline */}
+                {scannerError && (
+                  <div className="p-3 bg-red-100 text-red-700 rounded-lg text-center text-sm">
+                    {scannerError}
+                  </div>
+                )}
+
+                <div
+                  id="qr-reader-inline"
+                  style={{
+                    width: '100%',
+                    maxWidth: '400px',
+                    minHeight: scannerActivo ? '300px' : '0',
+                    margin: '0 auto'
                   }}
                 />
+
+                {scannerCargando && (
+                  <div className="text-center py-6 text-gray-500">
+                    📷 Iniciando cámara...
+                  </div>
+                )}
+
+                {!scannerActivo && !scannerCargando && (
+                  <button
+                    onClick={iniciarScanner}
+                    className="w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold text-lg transition"
+                  >
+                    📷 Abrir Escáner QR
+                  </button>
+                )}
+
+                {scannerActivo && (
+                  <button
+                    onClick={detenerScanner}
+                    className="w-full py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-medium transition"
+                  >
+                    ⏹️ Cerrar Escáner
+                  </button>
+                )}
               </CardContent>
             </Card>
 
