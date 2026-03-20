@@ -306,9 +306,14 @@ export default function AdminPanel() {
 
   // Cargar marketing
   const cargarMarketing = async () => {
+    try {
     const res = await fetch('/api/marketing')
     const data = await res.json()
-    setPromociones(data)
+    setPromociones(Array.isArray(data) ? data : [])
+    } catch (error) {
+      console.error("Error cargando marketing:", error)
+      setPromociones([])
+    }
   }
 
   // Cambiar tab
