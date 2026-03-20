@@ -52,6 +52,10 @@ interface Marketing {
   destinatarios: string
   estado: string
   enviados: number
+  errores: number
+  fechaProgramada: string | null
+  repetir: string | null
+  fechaEnvio: string | null
   createdAt: string
 }
 
@@ -209,8 +213,8 @@ export default function AdminPanel() {
 
   // Form states
   const [nuevoCliente, setNuevoCliente] = useState({ nombre: '', email: '', telefono: '', notas: '', enviarQR: true })
-  const [nuevaCobranza, setNuevaCobranza] = useState({ clienteId: '', concepto: '', monto: '', fechaVencimiento: '', enviarNotificacion: true })
-  const [nuevoMarketing, setNuevoMarketing] = useState({ tipo: 'promocion', titulo: '', mensaje: '', destinatarios: 'todos' })
+  const [nuevaCobranza, setNuevaCobranza] = useState({ clienteId: '', concepto: '', monto: '', fechaVencimiento: '', enviarNotificacion: false })
+  const [nuevoMarketing, setNuevoMarketing] = useState({ tipo: 'promocion', titulo: '', mensaje: '', destinatarios: 'todos', fechaProgramada: '', repetir: '' })
   const [nuevoUsuario, setNuevoUsuario] = useState({ email: '', password: '', nombre: '', rol: 'admin' })
   const [editandoCliente, setEditandoCliente] = useState<Cliente | null>(null)
   const [editandoNegocio, setEditandoNegocio] = useState<Negocio | null>(null)
@@ -450,7 +454,7 @@ export default function AdminPanel() {
       })
       if (res.ok) {
         setMensaje({ tipo: 'exito', texto: 'Cobranza creada' + (nuevaCobranza.enviarNotificacion ? ' y notificación enviada' : '') })
-        setNuevaCobranza({ clienteId: '', concepto: '', monto: '', fechaVencimiento: '', enviarNotificacion: true })
+        setNuevaCobranza({ clienteId: '', concepto: '', monto: '', fechaVencimiento: '', enviarNotificacion: false })
         cargarCobranzas()
       }
     } catch {
@@ -500,7 +504,8 @@ export default function AdminPanel() {
       return
     }
     try {
-      setMensaje({ tipo: 'exito', texto: 'Enviando campaña...' })
+      const esProgramado = nuevoMarketing.fechaProgramada && new Date(nuevoMarketing.fechaProgramada) > new Date()
+      setMensaje({ tipo: 'exito', texto: esProgramado ? 'Programando campaña...' : 'Enviando campaña...' })
       const res = await fetch('/api/marketing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -508,9 +513,15 @@ export default function AdminPanel() {
       })
       const data = await res.json()
       if (res.ok) {
-        setMensaje({ tipo: 'exito', texto: `Campaña enviada a ${data.enviados} clientes` + (data.errores > 0 ? ` (${data.errores} errores)` : '') })
-        setNuevoMarketing({ tipo: 'promocion', titulo: '', mensaje: '', destinatarios: 'todos' })
+        if (data.programado) {
+          setMensaje({ tipo: 'exito', texto: `Campaña programada para ${new Date(nuevoMarketing.fechaProgramada).toLocaleString('es-ES')}` })
+        } else {
+          setMensaje({ tipo: 'exito', texto: `Campaña enviada a ${data.enviados} clientes` + (data.errores > 0 ? ` (${data.errores} errores)` : '') })
+        }
+        setNuevoMarketing({ tipo: 'promocion', titulo: '', mensaje: '', destinatarios: 'todos', fechaProgramada: '', repetir: '' })
         cargarMarketing()
+      } else {
+        setMensaje({ tipo: 'error', texto: data.error || 'Error al crear campaña' })
       }
     } catch {
       setMensaje({ tipo: 'error', texto: 'Error al crear campaña' })
@@ -1138,8 +1149,8 @@ export default function AdminPanel() {
                       )}
                       {editandoCliente?.id !== c.id && (
                         <div className="flex gap-2 mt-3 flex-wrap">
-                          <Button size="sm" variant="outline" onClick={() => setClienteQRSeleccionado(c)}>📱 Ver QR</Button>
-                          <Button size="sm" variant="outline" onClick={() => registrarVisita(c.codigoQR)}>+1 Visita</Button>
+                          <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => registrarVisita(c.codigoQR)}>🛒 Compra</Button>
+                          <Button size="sm" variant="outline" onClick={() => setClienteQRSeleccionado(c)}>📱 QR</Button>
                           {!c.qrEnviado && (
                             <Button size="sm" variant="outline" onClick={() => reenviarQR(c.id)}>📧 Enviar QR</Button>
                           )}
@@ -1643,45 +1654,222 @@ export default function AdminPanel() {
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
                     <Label>Tipo</Label>
-                    <select className="w-full h-10 px-3 rounded-lg border-2 border-gray-200" value={nuevoMarketing.tipo} onChange={(e) => setNuevoMarketing({...nuevoMarketing, tipo: e.target.value})}>
-                      <option value="promocion">Promoción</option>
-                      <option value="recordatorio">Recordatorio</option>
-                      <option value="oferta">Oferta Especial</option>
+                    <select className="w-full h-10 px-3 rounded-lg border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-800" value={nuevoMarketing.tipo} onChange={(e) => setNuevoMarketing({...nuevoMarketing, tipo: e.target.value})}>
+                      <option value="promocion">📢 Promoción</option>
+                      <option value="recordatorio">🔔 Recordatorio</option>
+                      <option value="oferta">🏷️ Oferta Especial</option>
                     </select>
                   </div>
                   <div>
                     <Label>Destinatarios</Label>
-                    <select className="w-full h-10 px-3 rounded-lg border-2 border-gray-200" value={nuevoMarketing.destinatarios} onChange={(e) => setNuevoMarketing({...nuevoMarketing, destinatarios: e.target.value})}>
-                      <option value="todos">Todos los clientes</option>
-                      <option value="inactivos">Clientes inactivos</option>
+                    <select className="w-full h-10 px-3 rounded-lg border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-800" value={nuevoMarketing.destinatarios} onChange={(e) => setNuevoMarketing({...nuevoMarketing, destinatarios: e.target.value})}>
+                      <option value="todos">👥 Todos los clientes</option>
+                      <option value="inactivos">😴 Clientes inactivos</option>
                     </select>
                   </div>
                   <div className="md:col-span-2">
                     <Label>Título</Label>
-                    <Input value={nuevoMarketing.titulo} onChange={(e) => setNuevoMarketing({...nuevoMarketing, titulo: e.target.value})} placeholder="Título" />
+                    <Input value={nuevoMarketing.titulo} onChange={(e) => setNuevoMarketing({...nuevoMarketing, titulo: e.target.value})} placeholder="Ej: ¡Oferta especial de fin de semana!" />
                   </div>
                   <div className="md:col-span-2">
                     <Label>Mensaje</Label>
-                    <textarea className="w-full h-24 px-3 py-2 rounded-lg border-2 border-gray-200" value={nuevoMarketing.mensaje} onChange={(e) => setNuevoMarketing({...nuevoMarketing, mensaje: e.target.value})} placeholder="Mensaje..." />
+                    <textarea className="w-full h-24 px-3 py-2 rounded-lg border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-800" value={nuevoMarketing.mensaje} onChange={(e) => setNuevoMarketing({...nuevoMarketing, mensaje: e.target.value})} placeholder="Escribe tu mensaje aquí..." />
+                  </div>
+
+                  {/* Sección de Programación */}
+                  <div className="md:col-span-2 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border-2 border-blue-200 dark:border-blue-800">
+                    <h4 className="font-semibold text-blue-700 dark:text-blue-400 mb-3 flex items-center gap-2">
+                      📅 Programación de Envío
+                    </h4>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-sm">Fecha y Hora de Envío</Label>
+                        <Input
+                          type="datetime-local"
+                          value={nuevoMarketing.fechaProgramada}
+                          onChange={(e) => setNuevoMarketing({...nuevoMarketing, fechaProgramada: e.target.value})}
+                          min={new Date().toISOString().slice(0, 16)}
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Deja vacío para enviar inmediatamente</p>
+                      </div>
+                      <div>
+                        <Label className="text-sm">Repetir Automáticamente</Label>
+                        <select
+                          className="w-full h-10 px-3 rounded-lg border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-800"
+                          value={nuevoMarketing.repetir || ''}
+                          onChange={(e) => setNuevoMarketing({...nuevoMarketing, repetir: e.target.value})}
+                        >
+                          <option value="">No repetir (envío único)</option>
+                          <option value="diario">🔁 Diario</option>
+                          <option value="semanal">📅 Semanal</option>
+                          <option value="mensual">📆 Mensual</option>
+                        </select>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <Button onClick={crearCampana} className="mt-4">Crear Campaña</Button>
+                <div className="flex gap-3 mt-6">
+                  <Button onClick={crearCampana} className="flex-1">
+                    {nuevoMarketing.fechaProgramada ? '📅 Programar Campaña' : '📤 Enviar Ahora'}
+                  </Button>
+                </div>
               </CardContent>
             </Card>
+
+            {/* Resumen de Campañas */}
+            <div className="grid md:grid-cols-3 gap-4">
+              <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+                <CardContent className="p-4 text-center">
+                  <div className="text-3xl font-bold">{marketing.filter(m => m.estado === 'programado').length}</div>
+                  <div className="text-sm opacity-90">Programadas</div>
+                </CardContent>
+              </Card>
+              <Card className="bg-gradient-to-br from-green-500 to-emerald-600 text-white">
+                <CardContent className="p-4 text-center">
+                  <div className="text-3xl font-bold">{marketing.filter(m => m.estado === 'enviado').length}</div>
+                  <div className="text-sm opacity-90">Enviadas</div>
+                </CardContent>
+              </Card>
+              <Card className="bg-gradient-to-br from-purple-500 to-pink-600 text-white">
+                <CardContent className="p-4 text-center">
+                  <div className="text-3xl font-bold">{marketing.reduce((sum, m) => sum + (m.enviados || 0), 0)}</div>
+                  <div className="text-sm opacity-90">Total Emails</div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Campañas Programadas */}
+            {marketing.filter(m => m.estado === 'programado').length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    📅 Campañas Programadas
+                    <span className="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full">
+                      {marketing.filter(m => m.estado === 'programado').length}
+                    </span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3 max-h-64 overflow-y-auto">
+                    {marketing.filter(m => m.estado === 'programado').map((m) => (
+                      <div key={m.id} className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <span className="font-semibold text-blue-800 dark:text-blue-300">{m.titulo}</span>
+                            <div className="text-sm text-gray-500 mt-1">
+                              📅 {m.fechaProgramada ? new Date(m.fechaProgramada).toLocaleString('es-ES') : 'Sin fecha'}
+                            </div>
+                            {m.repetir && (
+                              <div className="text-xs text-purple-600 dark:text-purple-400 mt-1">
+                                🔁 Se repite: {m.repetir}
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={async () => {
+                                try {
+                                  const res = await fetch('/api/marketing', {
+                                    method: 'PUT',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ id: m.id, accion: 'enviar-ahora' })
+                                  })
+                                  if (res.ok) {
+                                    setMensaje({ tipo: 'exito', texto: 'Campaña enviada' })
+                                    cargarMarketing()
+                                  }
+                                } catch {
+                                  setMensaje({ tipo: 'error', texto: 'Error al enviar' })
+                                }
+                              }}
+                            >
+                              📤 Enviar
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={async () => {
+                                if (!confirm('¿Cancelar esta campaña?')) return
+                                try {
+                                  const res = await fetch('/api/marketing', {
+                                    method: 'PUT',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ id: m.id, accion: 'cancelar' })
+                                  })
+                                  if (res.ok) {
+                                    setMensaje({ tipo: 'exito', texto: 'Campaña cancelada' })
+                                    cargarMarketing()
+                                  }
+                                } catch {
+                                  setMensaje({ tipo: 'error', texto: 'Error al cancelar' })
+                                }
+                              }}
+                            >
+                              ❌
+                            </Button>
+                          </div>
+                        </div>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 line-clamp-2">{m.mensaje}</p>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Historial de Campañas */}
             <Card>
-              <CardHeader><CardTitle className="text-lg">📋 Campañas</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-lg">📋 Historial de Campañas</CardTitle></CardHeader>
               <CardContent>
                 <div className="space-y-2 max-h-96 overflow-y-auto">
                   {marketing.length === 0 ? (
-                    <p className="text-muted-foreground text-center py-4">No hay campañas</p>
+                    <div className="text-center py-8">
+                      <div className="text-5xl mb-3">📭</div>
+                      <p className="text-gray-500">No hay campañas creadas</p>
+                    </div>
                   ) : (
                     marketing.map((m) => (
-                      <div key={m.id} className="p-3 bg-muted rounded-lg">
-                        <div className="flex justify-between">
-                          <span className="font-medium">{m.titulo}</span>
-                          <span className={`text-xs px-2 py-1 rounded ${m.estado === 'enviado' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>{m.estado}</span>
+                      <div key={m.id} className={`p-4 rounded-lg border ${
+                        m.estado === 'enviado' ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' :
+                        m.estado === 'cancelado' ? 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 opacity-60' :
+                        m.estado === 'programado' ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' :
+                        'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800'
+                      }`}>
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-semibold">{m.titulo}</span>
+                              <span className={`text-xs px-2 py-1 rounded-full ${
+                                m.estado === 'enviado' ? 'bg-green-100 text-green-700 dark:bg-green-800 dark:text-green-300' :
+                                m.estado === 'cancelado' ? 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400' :
+                                m.estado === 'programado' ? 'bg-blue-100 text-blue-700 dark:bg-blue-800 dark:text-blue-300' :
+                                'bg-amber-100 text-amber-700 dark:bg-amber-800 dark:text-amber-300'
+                              }`}>
+                                {m.estado === 'enviado' ? '✅ Enviado' :
+                                 m.estado === 'cancelado' ? '❌ Cancelado' :
+                                 m.estado === 'programado' ? '📅 Programado' :
+                                 '⏳ Pendiente'}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{m.mensaje}</p>
+                            <div className="flex gap-4 text-xs text-gray-400 mt-2">
+                              <span>👥 {m.destinatarios === 'todos' ? 'Todos' : 'Inactivos'}</span>
+                              {m.estado === 'enviado' && (
+                                <>
+                                  <span className="text-green-600 dark:text-green-400">✉️ {m.enviados} enviados</span>
+                                  {m.errores > 0 && (
+                                    <span className="text-red-600 dark:text-red-400">⚠️ {m.errores} errores</span>
+                                  )}
+                                </>
+                              )}
+                              {m.fechaProgramada && m.estado === 'programado' && (
+                                <span>📅 {new Date(m.fechaProgramada).toLocaleString('es-ES')}</span>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                        <p className="text-sm text-muted-foreground mt-1">{m.mensaje}</p>
                       </div>
                     ))
                   )}

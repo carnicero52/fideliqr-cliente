@@ -116,18 +116,21 @@ model Cobranza {
 
 // Campañas de Marketing
 model Marketing {
-  id            String    @id @default(cuid())
-  tipo          String
-  titulo        String
-  mensaje       String
-  destinatarios String    @default("todos")
-  estado        String    @default("pendiente")
-  enviados      Int       @default(0)
-  errores       Int       @default(0)
-  fechaEnvio    DateTime?
-  createdAt     DateTime  @default(now())
+  id              String    @id @default(cuid())
+  tipo            String
+  titulo          String
+  mensaje         String
+  destinatarios   String    @default("todos")
+  estado          String    @default("pendiente")
+  enviados        Int       @default(0)
+  errores         Int       @default(0)
+  fechaEnvio      DateTime?
+  fechaProgramada DateTime?  // Para envíos programados
+  repetir         String?    // "diario", "semanal", "mensual", null
+  createdAt       DateTime  @default(now())
 
   @@index([estado])
+  @@index([fechaProgramada])
 }
 
 // Historial de notificaciones
