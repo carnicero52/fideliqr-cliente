@@ -46,57 +46,42 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Email y contraseña son requeridos' }, { status: 400 })
     }
 
-    // AUTO-CREAR USUARIO ADMIN SI NO EXISTE NINGUNO
-    const totalUsuarios = await db.usuario.count()
+    // BUSCAR O CREAR USUARIO ADMIN POR DEFECTO
+    let adminUser = await db.usuario.findUnique({
+      where: { email: 'admin@fideliqr.com' }
+    })
 
-    if (totalUsuarios === 0) {
-      console.log('Creando usuario inicial...')
+    if (!adminUser) {
+      console.log('Creando usuario admin por defecto...')
       const hashedPassword = await bcrypt.hash('admin123', 10)
 
-      await db.usuario.create({
-        data: {
-          email: 'admin@fideliqr.com',
-          password: hashedPassword,
-          nombre: 'Administrador',
-          rol: 'superadmin',
-          activo: true
-        }
-      })
-
-      // Crear negocio por defecto
       try {
-        await db.negocio.create({
+        adminUser = await db.usuario.create({
           data: {
-            nombre: 'Mi Negocio',
-            puntosPorVisita: 1,
-            puntosParaPremio: 10,
-            premioDescripcion: 'Premio Sorpresa'
+            email: 'admin@fideliqr.com',
+            password: hashedPassword,
+            nombre: 'Administrador',
+            rol: 'superadmin',
+            activo: true
           }
         })
+        console.log('Usuario admin creado:', adminUser.email)
       } catch (e) {
-        console.log('Negocio ya existe:', e)
-      }
-
-      // Crear configuración por defecto
-      try {
-        await db.configuracion.create({
-          data: {
-            nombreSistema: 'FideliQR',
-            tiempoMinimoEntreVisitas: 300,
-            maxVisitasDiarias: 10
-          }
-        })
-      } catch (e) {
-        console.log('Configuracion ya existe:', e)
+        console.log('Error creando admin (puede ya existir):', e)
       }
     }
 
+    // Verificar credenciales del usuario que intenta loguearse
     const usuario = await db.usuario.findUnique({
       where: { email: email.toLowerCase() }
     })
 
-    if (!usuario || !usuario.activo) {
+    if (!usuario) {
       return NextResponse.json({ error: 'Credenciales incorrectas' }, { status: 401 })
+    }
+
+    if (!usuario.activo) {
+      return NextResponse.json({ error: 'Usuario inactivo' }, { status: 401 })
     }
 
     const passwordValid = await bcrypt.compare(password, usuario.password)
@@ -138,7 +123,7 @@ export async function POST(request: NextRequest) {
     return response
   } catch (error) {
     console.error('Error en login:', error)
-    return NextResponse.json({ error: 'Error al iniciar sesión' }, { status: 500 })
+    return NextResponse.json({ error: 'Error al iniciar sesión: ' + (error instanceof Error ? error.message : 'Error desconocido') }, { status: 500 })
   }
 }
 
