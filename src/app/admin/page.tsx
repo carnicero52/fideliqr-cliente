@@ -754,12 +754,37 @@ export default function AdminPanel() {
         {/* Dashboard */}
         {tab === 'dashboard' && estadisticas && (
           <div className="space-y-6">
+            {/* HEADER DEL NEGOCIO */}
+            <Card className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-4">
+                  {negocio?.logo ? (
+                    <img
+                      src={negocio.logo}
+                      alt="Logo"
+                      className="w-16 h-16 rounded-xl object-cover bg-white"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 rounded-xl bg-white/20 flex items-center justify-center text-3xl">
+                      🏪
+                    </div>
+                  )}
+                  <div>
+                    <h1 className="text-2xl font-bold">{negocio?.nombre || 'Mi Negocio'}</h1>
+                    {negocio?.descripcion && (
+                      <p className="text-white/80 text-sm">{negocio.descripcion}</p>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* ENCABEZADO */}
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold text-foreground">📊 Panel de Control</h2>
               <span className="text-sm text-muted-foreground">{new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
             </div>
-            
+
             {/* FILA 1: CLIENTES */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
