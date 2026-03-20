@@ -138,34 +138,34 @@ type Tab = 'dashboard' | 'clientes' | 'visitas' | 'cobranzas' | 'marketing' | 'q
 export default function AdminPanel() {
   // Theme
   const { theme, setTheme, resolvedTheme } = useTheme()
-  const [  mounted, setMounted] = useState(false)
+  const [ mounted, setMounted] = useState(false)
   
   // State
-  const [ tab, setTab] = useState<Tab>('dashboard')
-  const [ loading, setLoading] = useState(true)
-  const [ authChecked, setAuthChecked] = useState(false)
-  const [ usuarioActual, setUsuarioActual] = useState<Usuario | null>(null)
-  const [ estadisticas, setEstadisticas] = useState<Estadisticas | null>(null)
-  const [ clientes, setClientes] = useState<Cliente[]>([])
-  const [ visitas, setVisitas] = useState<Visita[]>([])
-  const [ cobranzas, setCobranzas] = useState<Cobranza[]>([])
-  const [  marketing, setMarketing] = useState<Marketing[]>([])
-  const [ negocio, setNegocio] = useState<Negocio | null>(null)
-  const [ configuracion, setConfiguracion] = useState<Configuracion | null>(null)
-  const [ usuarios, setUsuarios] = useState<Usuario[]>([])
-  const [  mensaje, setMensaje] = useState<{ tipo: 'exito' | 'error'; texto: string } | null>(null)
+  const [tab, setTab] = useState<Tab>('dashboard')
+  const [loading, setLoading] = useState(true)
+  const [authChecked, setAuthChecked] = useState(false)
+  const [usuarioActual, setUsuarioActual] = useState<Usuario | null>(null)
+  const [estadisticas, setEstadisticas] = useState<Estadisticas | null>(null)
+  const [clientes, setClientes] = useState<Cliente[]>([])
+  const [visitas, setVisitas] = useState<Visita[]>([])
+  const [cobranzas, setCobranzas] = useState<Cobranza[]>([])
+  const [ mktItems, setMktItems] = useState<Marketing[]>([])
+  const [negocio, setNegocio] = useState<Negocio | null>(null)
+  const [configuracion, setConfiguracion] = useState<Configuracion | null>(null)
+  const [usuarios, setUsuarios] = useState<Usuario[]>([])
+  const [ msg, setMsg] = useState<{ tipo: 'exito' | 'error'; texto: string } | null>(null)
   
   // Form states
-  const [ nuevoCliente, setNuevoCliente] = useState({ nombre: '', email: '', telefono: '', notas: '' })
-  const [ nuevaCobranza, setNuevaCobranza] = useState({ clienteId: '', concepto: '', monto: '', fechaVencimiento: '', enviarNotificacion: false })
-  const [ nuevoMarketing, setNuevoMarketing] = useState({ tipo: 'promocion', titulo: '', mensaje: '', destinatarios: 'todos', fechaProgramada: '', repetir: '' })
-  const [ nuevoUsuario, setNuevoUsuario] = useState({ email: '', password: '', nombre: '', rol: 'admin' })
-  const [ editandoCliente, setEditandoCliente] = useState<Cliente | null>(null)
-  const [ editandoNegocio, setEditandoNegocio] = useState<Negocio | null>(null)
-  const [ editandoPremios, setEditandoPremios] = useState<Negocio | null>(null)
-  const [ editandoConfig, setEditandoConfig] = useState<Configuracion | null>(null)
-  const [ editandoNotificaciones, setEditandoNotificaciones] = useState<Negocio | null>(null)
-  const [ logoFile, setLogoFile] = useState<File | null>(null)
+  const [nuevoCliente, setNuevoCliente] = useState({ nombre: '', email: '', telefono: '', notas: '' })
+  const [nuevaCobranza, setNuevaCobranza] = useState({ clienteId: '', concepto: '', monto: '', fechaVencimiento: '', enviarNotificacion: false })
+  const [nuevoMarketing, setNuevoMarketing] = useState({ tipo: 'promocion', titulo: '', mensaje: '', destinatarios: 'todos', fechaProgramada: '', repetir: '' })
+  const [nuevoUsuario, setNuevoUsuario] = useState({ email: '', password: '', nombre: '', rol: 'admin' })
+  const [editandoCliente, setEditandoCliente] = useState<Cliente | null>(null)
+  const [editandoNegocio, setEditandoNegocio] = useState<Negocio | null>(null)
+  const [editandoPremios, setEditandoPremios] = useState<Negocio | null>(null)
+  const [editandoConfig, setEditandoConfig] = useState<Configuracion | null>(null)
+  const [editandoNotificaciones, setEditandoNotificaciones] = useState<Negocio | null>(null)
+  const [logoFile, setLogoFile] = useState<File | null>(null)
 
   // Hydration fix for theme
   useEffect(() => {
@@ -196,14 +196,14 @@ export default function AdminPanel() {
     if (!usuarioActual) return
     setLoading(true)
     try {
-      const [ estRes, cliRes, negRes, cfgRes] = await Promise.all([
+      const [estRes, cliRes, negRes, cfgRes] = await Promise.all([
         fetch('/api/estadisticas'),
         fetch('/api/clientes'),
         fetch('/api/negocio'),
         fetch('/api/configuracion')
       ])
       
-      const [ est, cli, neg, cfg] = await Promise.all([
+      const [est, cli, neg, cfg] = await Promise.all([
         estRes.json(),
         cliRes.json(),
         negRes.json(),
@@ -254,13 +254,13 @@ export default function AdminPanel() {
   const cargarMarketing = async () => {
     const res = await fetch('/api/marketing')
     const data = await res.json()
-    setMarketing(Array.isArray(data) ? data : [])
+    setMktItems(Array.isArray(data) ? data : [])
   }
 
   // Cambiar tab
   const cambiarTab = (nuevoTab: Tab) => {
     setTab(nuevoTab)
-    setMensaje(null)
+    setMsg(null)
     if (nuevoTab === 'visitas') cargarVisitas()
     if (nuevoTab === 'cobranzas') cargarCobranzas()
     if (nuevoTab === 'marketing') cargarMarketing()
@@ -276,7 +276,7 @@ export default function AdminPanel() {
   // Crear cliente
   const crearCliente = async () => {
     if (!nuevoCliente.nombre || !nuevoCliente.email) {
-      setMensaje({ tipo: 'error', texto: 'Nombre y email son obligatorios' })
+      setMsg({ tipo: 'error', texto: 'Nombre y email son obligatorios' })
       return
     }
     try {
@@ -286,15 +286,15 @@ export default function AdminPanel() {
         body: JSON.stringify(nuevoCliente)
       })
       if (res.ok) {
-        setMensaje({ tipo: 'exito', texto: 'Cliente creado exitosamente' })
+        setMsg({ tipo: 'exito', texto: 'Cliente creado exitosamente' })
         setNuevoCliente({ telefono: '', nombre: '', email: '', notas: '' })
         cargarDatos()
       } else {
         const data = await res.json()
-        setMensaje({ tipo: 'error', texto: data.error || 'Error al crear cliente' })
+        setMsg({ tipo: 'error', texto: data.error || 'Error al crear cliente' })
       }
     } catch {
-      setMensaje({ tipo: 'error', texto: 'Error de conexión' })
+      setMsg({ tipo: 'error', texto: 'Error de conexión' })
     }
   }
 
@@ -308,12 +308,12 @@ export default function AdminPanel() {
         body: JSON.stringify(editandoCliente)
       })
       if (res.ok) {
-        setMensaje({ tipo: 'exito', texto: 'Cliente actualizado' })
+        setMsg({ tipo: 'exito', texto: 'Cliente actualizado' })
         setEditandoCliente(null)
         cargarDatos()
       }
     } catch {
-      setMensaje({ tipo: 'error', texto: 'Error al actualizar' })
+      setMsg({ tipo: 'error', texto: 'Error al actualizar' })
     }
   }
 
@@ -322,17 +322,17 @@ export default function AdminPanel() {
     if (!confirm('¿Eliminar este cliente?')) return
     try {
       await fetch(`/api/clientes/${id}`, { method: 'DELETE' })
-      setMensaje({ tipo: 'exito', texto: 'Cliente eliminado' })
+      setMsg({ tipo: 'exito', texto: 'Cliente eliminado' })
       cargarDatos()
     } catch {
-      setMensaje({ tipo: 'error', texto: 'Error al eliminar' })
+      setMsg({ tipo: 'error', texto: 'Error al eliminar' })
     }
   }
 
   // Crear cobranza
   const crearCobranza = async () => {
     if (!nuevaCobranza.clienteId || !nuevaCobranza.monto || !nuevaCobranza.concepto) {
-      setMensaje({ tipo: 'error', texto: 'Completa todos los campos obligatorios' })
+      setMsg({ tipo: 'error', texto: 'Completa todos los campos obligatorios' })
       return
     }
     try {
@@ -342,12 +342,12 @@ export default function AdminPanel() {
         body: JSON.stringify({ ...nuevaCobranza, monto: parseFloat(nuevaCobranza.monto) })
       })
       if (res.ok) {
-        setMensaje({ tipo: 'exito', texto: 'Cobranza creada' + (nuevaCobranza.enviarNotificacion ? ' y notificación enviada' : '') })
+        setMsg({ tipo: 'exito', texto: 'Cobranza creada' + (nuevaCobranza.enviarNotificacion ? ' y notificación enviada' : '') })
         setNuevaCobranza({ clienteId: '', concepto: '', monto: '', fechaVencimiento: '', enviarNotificacion: true })
         cargarCobranzas()
       }
     } catch {
-      setMensaje({ tipo: 'error', texto: 'Error al crear cobranza' })
+      setMsg({ tipo: 'error', texto: 'Error al crear cobranza' })
     }
   }
 
@@ -361,12 +361,12 @@ export default function AdminPanel() {
       })
       const data = await res.json()
       if (res.ok) {
-        setMensaje({ tipo: 'exito', texto: 'Recordatorio enviado por email' })
+        setMsg({ tipo: 'exito', texto: 'Recordatorio enviado por email' })
       } else {
-        setMensaje({ tipo: 'error', texto: data.error || 'Error al enviar recordatorio' })
+        setMsg({ tipo: 'error', texto: data.error || 'Error al enviar recordatorio' })
       }
     } catch {
-      setMensaje({ tipo: 'error', texto: 'Error al enviar recordatorio' })
+      setMsg({ tipo: 'error', texto: 'Error al enviar recordatorio' })
     }
   }
 
@@ -378,22 +378,22 @@ export default function AdminPanel() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ estado: 'pagado' })
       })
-      setMensaje({ tipo: 'exito', texto: 'Cobranza marcada como pagada' })
+      setMsg({ tipo: 'exito', texto: 'Cobranza marcada como pagada' })
       cargarCobranzas()
       cargarDatos()
     } catch {
-      setMensaje({ tipo: 'error', texto: 'Error al actualizar' })
+      setMsg({ tipo: 'error', texto: 'Error al actualizar' })
     }
   }
 
   // Crear campaña
   const crearCampana = async () => {
     if (!nuevoMarketing.titulo || !nuevoMarketing.mensaje) {
-      setMensaje({ tipo: 'error', texto: 'Título y mensaje son obligatorios' })
+      setMsg({ tipo: 'error', texto: 'Título y mensaje son obligatorios' })
       return
     }
     try {
-      setMensaje({ tipo: 'exito', texto: 'Enviando campaña...' })
+      setMsg({ tipo: 'exito', texto: 'Enviando campaña...' })
       const res = await fetch('/api/marketing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -401,12 +401,12 @@ export default function AdminPanel() {
       })
       const data = await res.json()
       if (res.ok) {
-        setMensaje({ tipo: 'exito', texto: `Campaña enviada a ${data.enviados} clientes` + (data.errores > 0 ? ` (${data.errores} errores)` : '') })
+        setMsg({ tipo: 'exito', texto: `Campaña enviada a ${data.enviados} clientes` + (data.errores > 0 ? ` (${data.errores} errores)` : '') })
         setNuevoMarketing({ tipo: 'promocion', titulo: '', mensaje: '', destinatarios: 'todos', fechaProgramada: '', repetir: '' })
         cargarMarketing()
       }
     } catch {
-      setMensaje({ tipo: 'error', texto: 'Error al crear campaña' })
+      setMsg({ tipo: 'error', texto: 'Error al crear campaña' })
     }
   }
 
@@ -420,12 +420,12 @@ export default function AdminPanel() {
         body: JSON.stringify(editandoNegocio)
       })
       if (res.ok) {
-        setMensaje({ tipo: 'exito', texto: 'Configuración guardada' })
+        setMsg({ tipo: 'exito', texto: 'Configuración guardada' })
         setNegocio(editandoNegocio)
         setEditandoNegocio(null)
       }
     } catch {
-      setMensaje({ tipo: 'error', texto: 'Error al guardar' })
+      setMsg({ tipo: 'error', texto: 'Error al guardar' })
     }
   }
 
@@ -439,12 +439,12 @@ export default function AdminPanel() {
         body: JSON.stringify(editandoConfig)
       })
       if (res.ok) {
-        setMensaje({ tipo: 'exito', texto: 'Configuración guardada' })
+        setMsg({ tipo: 'exito', texto: 'Configuración guardada' })
         setConfiguracion(editandoConfig)
         setEditandoConfig(null)
       }
     } catch {
-      setMensaje({ tipo: 'error', texto: 'Error al guardar configuración' })
+      setMsg({ tipo: 'error', texto: 'Error al guardar configuración' })
     }
   }
 
@@ -458,12 +458,12 @@ export default function AdminPanel() {
         body: JSON.stringify(editandoNotificaciones)
       })
       if (res.ok) {
-        setMensaje({ tipo: 'exito', texto: 'Notificaciones guardadas' })
+        setMsg({ tipo: 'exito', texto: 'Notificaciones guardadas' })
         setNegocio(editandoNotificaciones)
         setEditandoNotificaciones(null)
       }
     } catch {
-      setMensaje({ tipo: 'error', texto: 'Error al guardar notificaciones' })
+      setMsg({ tipo: 'error', texto: 'Error al guardar notificaciones' })
     }
   }
 
@@ -477,19 +477,19 @@ export default function AdminPanel() {
         body: JSON.stringify(editandoNegocio)
       })
       if (res.ok) {
-        setMensaje({ tipo: 'exito', texto: 'Información guardada' })
+        setMsg({ tipo: 'exito', texto: 'Información guardada' })
         setNegocio(editandoNegocio)
         setEditandoNegocio(null)
       }
     } catch {
-      setMensaje({ tipo: 'error', texto: 'Error al guardar' })
+      setMsg({ tipo: 'error', texto: 'Error al guardar' })
     }
   }
 
   // Crear usuario
   const crearUsuario = async () => {
     if (!nuevoUsuario.email || !nuevoUsuario.password || !nuevoUsuario.nombre) {
-      setMensaje({ tipo: 'error', texto: 'Todos los campos son obligatorios' })
+      setMsg({ tipo: 'error', texto: 'Todos los campos son obligatorios' })
       return
     }
     try {
@@ -499,15 +499,15 @@ export default function AdminPanel() {
         body: JSON.stringify(nuevoUsuario)
       })
       if (res.ok) {
-        setMensaje({ tipo: 'exito', texto: 'Usuario creado exitosamente' })
+        setMsg({ tipo: 'exito', texto: 'Usuario creado exitosamente' })
         setNuevoUsuario({ email: '', password: '', nombre: '', rol: 'admin' })
         cargarUsuarios()
       } else {
         const data = await res.json()
-        setMensaje({ tipo: 'error', texto: data.error || 'Error al crear usuario' })
+        setMsg({ tipo: 'error', texto: data.error || 'Error al crear usuario' })
       }
     } catch {
-      setMensaje({ tipo: 'error', texto: 'Error al crear usuario' })
+      setMsg({ tipo: 'error', texto: 'Error al crear usuario' })
     }
   }
 
@@ -516,10 +516,10 @@ export default function AdminPanel() {
     if (!confirm('¿Eliminar este usuario?')) return
     try {
       await fetch(`/api/usuarios?id=${id}`, { method: 'DELETE' })
-      setMensaje({ tipo: 'exito', texto: 'Usuario eliminado' })
+      setMsg({ tipo: 'exito', texto: 'Usuario eliminado' })
       cargarUsuarios()
     } catch {
-      setMensaje({ tipo: 'error', texto: 'Error al eliminar usuario' })
+      setMsg({ tipo: 'error', texto: 'Error al eliminar usuario' })
     }
   }
 
@@ -535,7 +535,7 @@ export default function AdminPanel() {
       })
       cargarDatos()
     } catch {
-      setMensaje({ tipo: 'error', texto: 'Error al agregar puntos' })
+      setMsg({ tipo: 'error', texto: 'Error al agregar puntos' })
     }
   }
 
@@ -559,14 +559,14 @@ export default function AdminPanel() {
       })
       
       if (res.ok) {
-        setMensaje({ tipo: 'exito', texto: `✅ Compra registrada a ${cliente.nombre}. +${puntosGanados} cupón` })
+        setMsg({ tipo: 'exito', texto: `✅ Compra registrada a ${cliente.nombre}. +${puntosGanados} cupón` })
         cargarDatos()
       } else {
         const data = await res.json()
-        setMensaje({ tipo: 'error', texto: data.error || 'Error al registrar compra' })
+        setMsg({ tipo: 'error', texto: data.error || 'Error al registrar compra' })
       }
     } catch {
-      setMensaje({ tipo: 'error', texto: 'Error al registrar compra' })
+      setMsg({ tipo: 'error', texto: 'Error al registrar compra' })
     }
   }
 
@@ -580,13 +580,13 @@ export default function AdminPanel() {
       })
       const data = await res.json()
       if (data.success) {
-        setMensaje({ tipo: 'exito', texto: `Premio canjeado. Puntos restantes: ${data.puntosRestantes}` })
+        setMsg({ tipo: 'exito', texto: `Premio canjeado. Puntos restantes: ${data.puntosRestantes}` })
         cargarDatos()
       } else {
-        setMensaje({ tipo: 'error', texto: data.error })
+        setMsg({ tipo: 'error', texto: data.error })
       }
     } catch {
-      setMensaje({ tipo: 'error', texto: 'Error al canjear' })
+      setMsg({ tipo: 'error', texto: 'Error al canjear' })
     }
   }
 
@@ -665,13 +665,13 @@ export default function AdminPanel() {
 
       {/* Main Content */}
       <main className="max-w-6xl mx-auto px-4 py-6">
-        {mensaje && (
+        {msg && (
           <div className={`mb-4 p-4 rounded-lg ${
-            mensaje.tipo === 'exito' 
+            msg.tipo === 'exito' 
               ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-300 dark:border-green-700' 
               : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-300 dark:border-red-700'
           }`}>
-            {mensaje.texto}
+            {msg.texto}
           </div>
         )}
 
@@ -1043,7 +1043,7 @@ export default function AdminPanel() {
                           const file = e.target.files?.[0]
                           if (file) {
                             if (file.size > 5 * 1024 * 1024) {
-                              setMensaje({ tipo: 'error', texto: 'La imagen debe ser menor a 5MB' })
+                              setMsg({ tipo: 'error', texto: 'La imagen debe ser menor a 5MB' })
                               return
                             }
                             const reader = new FileReader()
@@ -1170,12 +1170,12 @@ export default function AdminPanel() {
                             body: JSON.stringify(editandoPremios)
                           })
                           if (res.ok) {
-                            setMensaje({ tipo: 'exito', texto: 'Premios guardados' })
+                            setMsg({ tipo: 'exito', texto: 'Premios guardados' })
                             setNegocio(editandoPremios)
                             setEditandoPremios(null)
                           }
                         } catch {
-                          setMensaje({ tipo: 'error', texto: 'Error al guardar' })
+                          setMsg({ tipo: 'error', texto: 'Error al guardar' })
                         }
                       }}>💾 Guardar</Button>
                       <Button variant="outline" onClick={() => setEditandoPremios(null)}>Cancelar</Button>
@@ -1374,11 +1374,11 @@ export default function AdminPanel() {
                             })
                           })
                           if (res.ok) {
-                            setMensaje({ tipo: 'exito', texto: 'Configuración actualizada' })
+                            setMsg({ tipo: 'exito', texto: 'Configuración actualizada' })
                             cargarDatos()
                           }
                         } catch {
-                          setMensaje({ tipo: 'error', texto: 'Error al guardar' })
+                          setMsg({ tipo: 'error', texto: 'Error al guardar' })
                         }
                       }}
                       className="w-5 h-5 rounded"
@@ -1627,38 +1627,38 @@ export default function AdminPanel() {
             <div className="grid md:grid-cols-3 gap-4">
               <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
                 <CardContent className="p-4 text-center">
-                  <div className="text-3xl font-bold">{marketing.filter(m => m.estado === 'programado').length}</div>
+                  <div className="text-3xl font-bold">{mktItems.filter(m => m.estado === 'programado').length}</div>
                   <div className="text-sm opacity-90">Programadas</div>
                 </CardContent>
               </Card>
               <Card className="bg-gradient-to-br from-green-500 to-emerald-600 text-white">
                 <CardContent className="p-4 text-center">
-                  <div className="text-3xl font-bold">{marketing.filter(m => m.estado === 'enviado').length}</div>
+                  <div className="text-3xl font-bold">{mktItems.filter(m => m.estado === 'enviado').length}</div>
                   <div className="text-sm opacity-90">Enviadas</div>
                 </CardContent>
               </Card>
               <Card className="bg-gradient-to-br from-purple-500 to-pink-600 text-white">
                 <CardContent className="p-4 text-center">
-                  <div className="text-3xl font-bold">{marketing.reduce((sum, m) => sum + (m.enviados || 0), 0)}</div>
+                  <div className="text-3xl font-bold">{mktItems.reduce((sum, m) => sum + (m.enviados || 0), 0)}</div>
                   <div className="text-sm opacity-90">Total Emails Enviados</div>
                 </CardContent>
               </Card>
             </div>
             
             {/* Scheduled Campaigns */}
-            {marketing.filter(m => m.estado === 'programado').length > 0 && (
+            {mktItems.filter(m => m.estado === 'programado').length > 0 && (
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center gap-2">
                     📅 Campañas Programadas
                     <span className="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full">
-                      {marketing.filter(m => m.estado === 'programado').length}
+                      {mktItems.filter(m => m.estado === 'programado').length}
                     </span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3 max-h-64 overflow-y-auto">
-                    {marketing.filter(m => m.estado === 'programado').map((m) => (
+                    {mktItems.filter(m => m.estado === 'programado').map((m) => (
                       <div key={m.id} className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
                         <div className="flex justify-between items-start">
                           <div>
@@ -1695,13 +1695,13 @@ export default function AdminPanel() {
                                   })
                                   const data = await res.json()
                                   if (res.ok) {
-                                    setMensaje({ tipo: 'exito', texto: `Campaña enviada a ${data.enviados} clientes` })
+                                    setMsg({ tipo: 'exito', texto: `Campaña enviada a ${data.enviados} clientes` })
                                     cargarMarketing()
                                   } else {
-                                    setMensaje({ tipo: 'error', texto: data.error || 'Error al enviar' })
+                                    setMsg({ tipo: 'error', texto: data.error || 'Error al enviar' })
                                   }
                                 } catch {
-                                  setMensaje({ tipo: 'error', texto: 'Error al enviar campaña' })
+                                  setMsg({ tipo: 'error', texto: 'Error al enviar campaña' })
                                 }
                               }}
                             >
@@ -1720,11 +1720,11 @@ export default function AdminPanel() {
                                   })
                                   const data = await res.json()
                                   if (res.ok) {
-                                    setMensaje({ tipo: 'exito', texto: 'Campaña cancelada' })
+                                    setMsg({ tipo: 'exito', texto: 'Campaña cancelada' })
                                     cargarMarketing()
                                   }
                                 } catch {
-                                  setMensaje({ tipo: 'error', texto: 'Error al cancelar' })
+                                  setMsg({ tipo: 'error', texto: 'Error al cancelar' })
                                 }
                               }}
                             >
@@ -1749,14 +1749,14 @@ export default function AdminPanel() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {marketing.length === 0 ? (
+                  {mktItems.length === 0 ? (
                     <div className="text-center py-8">
                       <div className="text-5xl mb-3">📭</div>
                       <p className="text-gray-500">No hay campañas creadas</p>
                       <p className="text-sm text-gray-400 mt-1">Crea tu primera campaña arriba</p>
                     </div>
                   ) : (
-                    marketing.map((m) => (
+                    mktItems.map((m) => (
                       <div key={m.id} className={`p-4 rounded-lg border ${
                         m.estado === 'enviado' ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' :
                         m.estado === 'cancelado' ? 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 opacity-60' :
@@ -1811,11 +1811,11 @@ export default function AdminPanel() {
                                 try {
                                   const res = await fetch(`/api/marketing?id=${m.id}`, { method: 'DELETE' })
                                   if (res.ok) {
-                                    setMensaje({ tipo: 'exito', texto: 'Campaña eliminada' })
+                                    setMsg({ tipo: 'exito', texto: 'Campaña eliminada' })
                                     cargarMarketing()
                                   }
                                 } catch {
-                                  setMensaje({ tipo: 'error', texto: 'Error al eliminar' })
+                                  setMsg({ tipo: 'error', texto: 'Error al eliminar' })
                                 }
                               }}
                             >
