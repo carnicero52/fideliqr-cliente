@@ -1954,3 +1954,4 @@ export default function AdminPanel() {
 // Forzar deploy Fri Mar 20 04:58:06 UTC 2026
 // Build fix: Fri Mar 20 15:34:13 UTC 2026
 // Deploy fix: 1774020962
+// Force deploy: Fri Mar 20 22:18:48 UTC 2026
