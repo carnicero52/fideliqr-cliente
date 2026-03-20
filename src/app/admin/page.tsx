@@ -138,34 +138,34 @@ type Tab = 'dashboard' | 'clientes' | 'visitas' | 'cobranzas' | 'marketing' | 'q
 export default function AdminPanel() {
   // Theme
   const { theme, setTheme, resolvedTheme } = useTheme()
-  const [ mounted, setMounted] = useState(false)
+  const [  mounted, setMounted] = useState(false)
   
   // State
-  const [tab, setTab] = useState<Tab>('dashboard')
-  const [loading, setLoading] = useState(true)
-  const [authChecked, setAuthChecked] = useState(false)
-  const [usuarioActual, setUsuarioActual] = useState<Usuario | null>(null)
-  const [estadisticas, setEstadisticas] = useState<Estadisticas | null>(null)
-  const [clientes, setClientes] = useState<Cliente[]>([])
-  const [visitas, setVisitas] = useState<Visita[]>([])
-  const [cobranzas, setCobranzas] = useState<Cobranza[]>([])
-  const [ marketing, setMarketing] = useState<Marketing[]>([])
-  const [negocio, setNegocio] = useState<Negocio | null>(null)
-  const [configuracion, setConfiguracion] = useState<Configuracion | null>(null)
-  const [usuarios, setUsuarios] = useState<Usuario[]>([])
-  const [ mensaje, setMensaje] = useState<{ tipo: 'exito' | 'error'; texto: string } | null>(null)
+  const [ tab, setTab] = useState<Tab>('dashboard')
+  const [ loading, setLoading] = useState(true)
+  const [ authChecked, setAuthChecked] = useState(false)
+  const [ usuarioActual, setUsuarioActual] = useState<Usuario | null>(null)
+  const [ estadisticas, setEstadisticas] = useState<Estadisticas | null>(null)
+  const [ clientes, setClientes] = useState<Cliente[]>([])
+  const [ visitas, setVisitas] = useState<Visita[]>([])
+  const [ cobranzas, setCobranzas] = useState<Cobranza[]>([])
+  const [  marketing, setMarketing] = useState<Marketing[]>([])
+  const [ negocio, setNegocio] = useState<Negocio | null>(null)
+  const [ configuracion, setConfiguracion] = useState<Configuracion | null>(null)
+  const [ usuarios, setUsuarios] = useState<Usuario[]>([])
+  const [  mensaje, setMensaje] = useState<{ tipo: 'exito' | 'error'; texto: string } | null>(null)
   
   // Form states
-  const [nuevoCliente, setNuevoCliente] = useState({ nombre: '', email: '', telefono: '', notas: '' })
-  const [nuevaCobranza, setNuevaCobranza] = useState({ clienteId: '', concepto: '', monto: '', fechaVencimiento: '', enviarNotificacion: false })
-  const [nuevoMarketing, setNuevoMarketing] = useState({ tipo: 'promocion', titulo: '', mensaje: '', destinatarios: 'todos', fechaProgramada: '', repetir: '' })
-  const [nuevoUsuario, setNuevoUsuario] = useState({ email: '', password: '', nombre: '', rol: 'admin' })
-  const [editandoCliente, setEditandoCliente] = useState<Cliente | null>(null)
-  const [editandoNegocio, setEditandoNegocio] = useState<Negocio | null>(null)
-  const [editandoPremios, setEditandoPremios] = useState<Negocio | null>(null)
-  const [editandoConfig, setEditandoConfig] = useState<Configuracion | null>(null)
-  const [editandoNotificaciones, setEditandoNotificaciones] = useState<Negocio | null>(null)
-  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [ nuevoCliente, setNuevoCliente] = useState({ nombre: '', email: '', telefono: '', notas: '' })
+  const [ nuevaCobranza, setNuevaCobranza] = useState({ clienteId: '', concepto: '', monto: '', fechaVencimiento: '', enviarNotificacion: false })
+  const [ nuevoMarketing, setNuevoMarketing] = useState({ tipo: 'promocion', titulo: '', mensaje: '', destinatarios: 'todos', fechaProgramada: '', repetir: '' })
+  const [ nuevoUsuario, setNuevoUsuario] = useState({ email: '', password: '', nombre: '', rol: 'admin' })
+  const [ editandoCliente, setEditandoCliente] = useState<Cliente | null>(null)
+  const [ editandoNegocio, setEditandoNegocio] = useState<Negocio | null>(null)
+  const [ editandoPremios, setEditandoPremios] = useState<Negocio | null>(null)
+  const [ editandoConfig, setEditandoConfig] = useState<Configuracion | null>(null)
+  const [ editandoNotificaciones, setEditandoNotificaciones] = useState<Negocio | null>(null)
+  const [ logoFile, setLogoFile] = useState<File | null>(null)
 
   // Hydration fix for theme
   useEffect(() => {
@@ -196,14 +196,14 @@ export default function AdminPanel() {
     if (!usuarioActual) return
     setLoading(true)
     try {
-      const [estRes, cliRes, negRes, cfgRes] = await Promise.all([
+      const [ estRes, cliRes, negRes, cfgRes] = await Promise.all([
         fetch('/api/estadisticas'),
         fetch('/api/clientes'),
         fetch('/api/negocio'),
         fetch('/api/configuracion')
       ])
       
-      const [est, cli, neg, cfg] = await Promise.all([
+      const [ est, cli, neg, cfg] = await Promise.all([
         estRes.json(),
         cliRes.json(),
         negRes.json(),
