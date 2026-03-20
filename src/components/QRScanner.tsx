@@ -1,5 +1,6 @@
 'use client'
 
+// QRScanner v2.0 - Escáner de código QR para FideliQR Cliente
 import { useState } from 'react'
 import { Html5Qrcode } from 'html5-qrcode'
 
