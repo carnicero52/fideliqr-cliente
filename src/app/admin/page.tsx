@@ -1,18 +1,20 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useTheme } from 'next-themes'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Html5Qrcode } from 'html5-qrcode'
-import { QRCodeSVG } from 'qrcode.react'
+
+// Generar QR usando API externa
+const generarQRImage = (url: string): string => {
+  return `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(url)}`
+}
 
 // Types
 interface Cliente {
   id: string
-  codigoQR: string
   telefono: string
   nombre: string
   email: string | null
@@ -21,7 +23,6 @@ interface Cliente {
   premiosCanjeados: number
   activo: boolean
   notas: string | null
-  qrEnviado: boolean
   createdAt: string
   _count?: { visitas: number; canjes: number; cobranzas: number }
 }
@@ -31,7 +32,7 @@ interface Visita {
   clienteId: string
   puntosGanados: number
   createdAt: string
-  cliente: { nombre: string; telefono: string; codigoQR: string }
+  cliente: { nombre: string; telefono: string }
 }
 
 interface Cobranza {
@@ -96,6 +97,10 @@ interface Configuracion {
   notificarCliente: boolean
   autoActualizar: boolean
   intervaloActualizacion: number
+  // Recordatorios automáticos
+  recordatoriosAutomaticos?: boolean
+  diasRecordatorio?: number
+  diasRecordatorioVencido?: number
 }
 
 interface Estadisticas {
@@ -128,12 +133,12 @@ interface Estadisticas {
   notificacionesEnviadas: number
 }
 
-type Tab = 'dashboard' | 'escanear' | 'clientes' | 'visitas' | 'cobranzas' | 'marketing' | 'configuracion' | 'usuarios'
+type Tab = 'dashboard' | 'clientes' | 'visitas' | 'cobranzas' | 'marketing' | 'qr' | 'configuracion' | 'usuarios'
 
 export default function AdminPanel() {
   // Theme
   const { theme, setTheme, resolvedTheme } = useTheme()
-  const [isMounted, setIsMounted] = useState(false)
+  const [ mounted, setMounted] = useState(false)
   
   // State
   const [tab, setTab] = useState<Tab>('dashboard')
@@ -144,78 +149,16 @@ export default function AdminPanel() {
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [visitas, setVisitas] = useState<Visita[]>([])
   const [cobranzas, setCobranzas] = useState<Cobranza[]>([])
-  const [[mmarketingItems, setMarketingItems] = useState<Marketing[]>([])
+  const [ marketing, setMarketing] = useState<Marketing[]>([])
   const [negocio, setNegocio] = useState<Negocio | null>(null)
   const [configuracion, setConfiguracion] = useState<Configuracion | null>(null)
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
-  const [[mmensajeTexto, setMensajeTexto] = useState<{ tipo: 'exito' | 'error'; texto: string } | null>(null)
-
-  // Scanner inline
-  const [codigoManual, setCodigoManual] = useState('')
-  const [scannerActivo, setScannerActivo] = useState(false)
-  const [scannerCargando, setScannerCargando] = useState(false)
-  const [scannerError, setScannerError] = useState<string | null>(null)
-  const scannerRef = useRef<Html5Qrcode | null>(null)
-
-  // Funciones del escáner
-  const iniciarScanner = async () => {
-    setScannerCargando(true)
-    setScannerError(null)
-    try {
-      const html5QrCode = new Html5Qrcode('qr-reader-inline')
-      scannerRef.current = html5QrCode
-
-      const cameras = await Html5Qrcode.getCameras()
-      if (!cameras || cameras.length === 0) {
-        setScannerError('No se encontró cámara')
-        setScannerCargando(false)
-        return
-      }
-
-      const backCamera = cameras.find(c =>
-        c.label.toLowerCase().includes('back') ||
-        c.label.toLowerCase().includes('trasera') ||
-        c.label.toLowerCase().includes('rear')
-      )
-
-      await html5QrCode.start(
-        backCamera?.id || cameras[0].id,
-        { fps: 10, qrbox: { width: 250, height: 250 } },
-        (text) => {
-          let code = text
-          if (text.includes('/cliente/')) {
-            code = text.split('/cliente/')[1].split(/[?#/]/)[0]
-          }
-          if (navigator.vibrate) navigator.vibrate(200)
-          registrarVisita(code.toUpperCase())
-        },
-        () => {}
-      )
-      setScannerActivo(true)
-      setScannerCargando(false)
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Error de cámara'
-      setScannerError(msg)
-      setScannerCargando(false)
-    }
-  }
-
-  const detenerScanner = async () => {
-    if (scannerRef.current) {
-      try {
-        await scannerRef.current.stop()
-      } catch (e) {
-        console.error(e)
-      }
-    }
-    setScannerActivo(false)
-  }
-
+  const [ mensaje, setMensaje] = useState<{ tipo: 'exito' | 'error'; texto: string } | null>(null)
+  
   // Form states
-  const [nuevoCliente, setNuevoCliente] = useState({ nombre: '', email: '', telefono: '', notas: '', enviarQR: true })
+  const [nuevoCliente, setNuevoCliente] = useState({ nombre: '', email: '', telefono: '', notas: '' })
   const [nuevaCobranza, setNuevaCobranza] = useState({ clienteId: '', concepto: '', monto: '', fechaVencimiento: '', enviarNotificacion: false })
   const [nuevoMarketing, setNuevoMarketing] = useState({ tipo: 'promocion', titulo: '', mensaje: '', destinatarios: 'todos', fechaProgramada: '', repetir: '' })
-
   const [nuevoUsuario, setNuevoUsuario] = useState({ email: '', password: '', nombre: '', rol: 'admin' })
   const [editandoCliente, setEditandoCliente] = useState<Cliente | null>(null)
   const [editandoNegocio, setEditandoNegocio] = useState<Negocio | null>(null)
@@ -223,12 +166,10 @@ export default function AdminPanel() {
   const [editandoConfig, setEditandoConfig] = useState<Configuracion | null>(null)
   const [editandoNotificaciones, setEditandoNotificaciones] = useState<Negocio | null>(null)
   const [logoFile, setLogoFile] = useState<File | null>(null)
-  const [busquedaCliente, setBusquedaCliente] = useState('')
-  const [clienteQRSeleccionado, setClienteQRSeleccionado] = useState<Cliente | null>(null)
 
   // Hydration fix for theme
   useEffect(() => {
-    setIsMounted(true)
+    setMounted(true)
   }, [])
 
   // Verificar autenticación
@@ -311,19 +252,15 @@ export default function AdminPanel() {
 
   // Cargar marketing
   const cargarMarketing = async () => {
-    try {
-      const res = await fetch('/api/marketing')
-      const data = await res.json()
-      setMarketingItems(Array.isArray(data) ? data : [])
-    } catch (error) {
-      console.error('Error cargando marketing:', error)
-      setMarketingItems([])
-    }
+    const res = await fetch('/api/marketing')
+    const data = await res.json()
+    setMarketing(Array.isArray(data) ? data : [])
   }
+
   // Cambiar tab
   const cambiarTab = (nuevoTab: Tab) => {
     setTab(nuevoTab)
-    setMensajeTexto(null)
+    setMensaje(null)
     if (nuevoTab === 'visitas') cargarVisitas()
     if (nuevoTab === 'cobranzas') cargarCobranzas()
     if (nuevoTab === 'marketing') cargarMarketing()
@@ -336,63 +273,10 @@ export default function AdminPanel() {
     window.location.href = '/login'
   }
 
-  // Registrar visita por código QR (escaneado por el negocio)
-  const registrarVisita = async (codigoQR: string) => {
-    if (!codigoQR.trim()) return
-
-    try {
-      const res = await fetch('/api/visitas', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          codigoQR: codigoQR.trim().toUpperCase(),
-          escaneadoPor: usuarioActual?.id
-        })
-      })
-
-      const data = await res.json()
-
-      if (res.ok && data.success) {
-        setMensajeTexto({
-          tipo: 'exito',
-          texto: `✅ ${data.cliente.nombre}: +${data.puntosGanados} puntos. Total: ${data.cliente.puntos}`
-        })
-        setCodigoManual('')
-        cargarDatos()
-      } else if (data.tiempoRestante) {
-        setMensajeTexto({
-          tipo: 'error',
-          texto: `⏳ Espera ${data.tiempoRestante} segundos (${data.cliente?.nombre})`
-        })
-      } else {
-        setMensajeTexto({ tipo: 'error', texto: data.error || 'Error al registrar visita' })
-      }
-    } catch {
-      setMensajeTexto({ tipo: 'error', texto: 'Error de conexión' })
-    }
-  }
-
-  // Reenviar QR al cliente
-  const reenviarQR = async (clienteId: string) => {
-    try {
-      const res = await fetch('/api/clientes/reenviar-qr', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clienteId })
-      })
-      if (res.ok) {
-        setMensajeTexto({ tipo: 'exito', texto: 'QR reenviado por email' })
-        cargarDatos()
-      }
-    } catch {
-      setMensajeTexto({ tipo: 'error', texto: 'Error al reenviar QR' })
-    }
-  }
-
   // Crear cliente
   const crearCliente = async () => {
     if (!nuevoCliente.nombre || !nuevoCliente.email) {
-      setMensajeTexto({ tipo: 'error', texto: 'Nombre y email son obligatorios' })
+      setMensaje({ tipo: 'error', texto: 'Nombre y email son obligatorios' })
       return
     }
     try {
@@ -402,15 +286,15 @@ export default function AdminPanel() {
         body: JSON.stringify(nuevoCliente)
       })
       if (res.ok) {
-        setMensajeTexto({ tipo: 'exito', texto: 'Cliente creado exitosamente' })
-        setNuevoCliente({ telefono: '', nombre: '', email: '', notas: '', enviarQR: true })
+        setMensaje({ tipo: 'exito', texto: 'Cliente creado exitosamente' })
+        setNuevoCliente({ telefono: '', nombre: '', email: '', notas: '' })
         cargarDatos()
       } else {
         const data = await res.json()
-        setMensajeTexto({ tipo: 'error', texto: data.error || 'Error al crear cliente' })
+        setMensaje({ tipo: 'error', texto: data.error || 'Error al crear cliente' })
       }
     } catch {
-      setMensajeTexto({ tipo: 'error', texto: 'Error de conexión' })
+      setMensaje({ tipo: 'error', texto: 'Error de conexión' })
     }
   }
 
@@ -424,12 +308,12 @@ export default function AdminPanel() {
         body: JSON.stringify(editandoCliente)
       })
       if (res.ok) {
-        setMensajeTexto({ tipo: 'exito', texto: 'Cliente actualizado' })
+        setMensaje({ tipo: 'exito', texto: 'Cliente actualizado' })
         setEditandoCliente(null)
         cargarDatos()
       }
     } catch {
-      setMensajeTexto({ tipo: 'error', texto: 'Error al actualizar' })
+      setMensaje({ tipo: 'error', texto: 'Error al actualizar' })
     }
   }
 
@@ -438,17 +322,17 @@ export default function AdminPanel() {
     if (!confirm('¿Eliminar este cliente?')) return
     try {
       await fetch(`/api/clientes/${id}`, { method: 'DELETE' })
-      setMensajeTexto({ tipo: 'exito', texto: 'Cliente eliminado' })
+      setMensaje({ tipo: 'exito', texto: 'Cliente eliminado' })
       cargarDatos()
     } catch {
-      setMensajeTexto({ tipo: 'error', texto: 'Error al eliminar' })
+      setMensaje({ tipo: 'error', texto: 'Error al eliminar' })
     }
   }
 
   // Crear cobranza
   const crearCobranza = async () => {
     if (!nuevaCobranza.clienteId || !nuevaCobranza.monto || !nuevaCobranza.concepto) {
-      setMensajeTexto({ tipo: 'error', texto: 'Completa todos los campos obligatorios' })
+      setMensaje({ tipo: 'error', texto: 'Completa todos los campos obligatorios' })
       return
     }
     try {
@@ -458,12 +342,12 @@ export default function AdminPanel() {
         body: JSON.stringify({ ...nuevaCobranza, monto: parseFloat(nuevaCobranza.monto) })
       })
       if (res.ok) {
-        setMensajeTexto({ tipo: 'exito', texto: 'Cobranza creada' + (nuevaCobranza.enviarNotificacion ? ' y notificación enviada' : '') })
-        setNuevaCobranza({ clienteId: '', concepto: '', monto: '', fechaVencimiento: '', enviarNotificacion: false })
+        setMensaje({ tipo: 'exito', texto: 'Cobranza creada' + (nuevaCobranza.enviarNotificacion ? ' y notificación enviada' : '') })
+        setNuevaCobranza({ clienteId: '', concepto: '', monto: '', fechaVencimiento: '', enviarNotificacion: true })
         cargarCobranzas()
       }
     } catch {
-      setMensajeTexto({ tipo: 'error', texto: 'Error al crear cobranza' })
+      setMensaje({ tipo: 'error', texto: 'Error al crear cobranza' })
     }
   }
 
@@ -477,12 +361,12 @@ export default function AdminPanel() {
       })
       const data = await res.json()
       if (res.ok) {
-        setMensajeTexto({ tipo: 'exito', texto: 'Recordatorio enviado por email' })
+        setMensaje({ tipo: 'exito', texto: 'Recordatorio enviado por email' })
       } else {
-        setMensajeTexto({ tipo: 'error', texto: data.error || 'Error al enviar recordatorio' })
+        setMensaje({ tipo: 'error', texto: data.error || 'Error al enviar recordatorio' })
       }
     } catch {
-      setMensajeTexto({ tipo: 'error', texto: 'Error al enviar recordatorio' })
+      setMensaje({ tipo: 'error', texto: 'Error al enviar recordatorio' })
     }
   }
 
@@ -494,23 +378,22 @@ export default function AdminPanel() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ estado: 'pagado' })
       })
-      setMensajeTexto({ tipo: 'exito', texto: 'Cobranza marcada como pagada' })
+      setMensaje({ tipo: 'exito', texto: 'Cobranza marcada como pagada' })
       cargarCobranzas()
       cargarDatos()
     } catch {
-      setMensajeTexto({ tipo: 'error', texto: 'Error al actualizar' })
+      setMensaje({ tipo: 'error', texto: 'Error al actualizar' })
     }
   }
 
   // Crear campaña
   const crearCampana = async () => {
     if (!nuevoMarketing.titulo || !nuevoMarketing.mensaje) {
-      setMensajeTexto({ tipo: 'error', texto: 'Título y mensajeTexto son obligatorios' })
+      setMensaje({ tipo: 'error', texto: 'Título y mensaje son obligatorios' })
       return
     }
     try {
-      const esProgramado = nuevoMarketing.fechaProgramada && new Date(nuevoMarketing.fechaProgramada) > new Date()
-      setMensajeTexto({ tipo: 'exito', texto: esProgramado ? 'Programando campaña...' : 'Enviando campaña...' })
+      setMensaje({ tipo: 'exito', texto: 'Enviando campaña...' })
       const res = await fetch('/api/marketing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -518,18 +401,12 @@ export default function AdminPanel() {
       })
       const data = await res.json()
       if (res.ok) {
-        if (data.programado) {
-          setMensajeTexto({ tipo: 'exito', texto: `Campaña programada para ${new Date(nuevoMarketing.fechaProgramada).toLocaleString('es-ES')}` })
-        } else {
-          setMensajeTexto({ tipo: 'exito', texto: `Campaña enviada a ${data.enviados} clientes` + (data.errores > 0 ? ` (${data.errores} errores)` : '') })
-        }
+        setMensaje({ tipo: 'exito', texto: `Campaña enviada a ${data.enviados} clientes` + (data.errores > 0 ? ` (${data.errores} errores)` : '') })
         setNuevoMarketing({ tipo: 'promocion', titulo: '', mensaje: '', destinatarios: 'todos', fechaProgramada: '', repetir: '' })
         cargarMarketing()
-      } else {
-        setMensajeTexto({ tipo: 'error', texto: data.error || 'Error al crear campaña' })
       }
     } catch {
-      setMensajeTexto({ tipo: 'error', texto: 'Error al crear campaña' })
+      setMensaje({ tipo: 'error', texto: 'Error al crear campaña' })
     }
   }
 
@@ -543,12 +420,12 @@ export default function AdminPanel() {
         body: JSON.stringify(editandoNegocio)
       })
       if (res.ok) {
-        setMensajeTexto({ tipo: 'exito', texto: 'Configuración guardada' })
+        setMensaje({ tipo: 'exito', texto: 'Configuración guardada' })
         setNegocio(editandoNegocio)
         setEditandoNegocio(null)
       }
     } catch {
-      setMensajeTexto({ tipo: 'error', texto: 'Error al guardar' })
+      setMensaje({ tipo: 'error', texto: 'Error al guardar' })
     }
   }
 
@@ -562,12 +439,12 @@ export default function AdminPanel() {
         body: JSON.stringify(editandoConfig)
       })
       if (res.ok) {
-        setMensajeTexto({ tipo: 'exito', texto: 'Configuración guardada' })
+        setMensaje({ tipo: 'exito', texto: 'Configuración guardada' })
         setConfiguracion(editandoConfig)
         setEditandoConfig(null)
       }
     } catch {
-      setMensajeTexto({ tipo: 'error', texto: 'Error al guardar configuración' })
+      setMensaje({ tipo: 'error', texto: 'Error al guardar configuración' })
     }
   }
 
@@ -581,12 +458,12 @@ export default function AdminPanel() {
         body: JSON.stringify(editandoNotificaciones)
       })
       if (res.ok) {
-        setMensajeTexto({ tipo: 'exito', texto: 'Notificaciones guardadas' })
+        setMensaje({ tipo: 'exito', texto: 'Notificaciones guardadas' })
         setNegocio(editandoNotificaciones)
         setEditandoNotificaciones(null)
       }
     } catch {
-      setMensajeTexto({ tipo: 'error', texto: 'Error al guardar notificaciones' })
+      setMensaje({ tipo: 'error', texto: 'Error al guardar notificaciones' })
     }
   }
 
@@ -600,19 +477,19 @@ export default function AdminPanel() {
         body: JSON.stringify(editandoNegocio)
       })
       if (res.ok) {
-        setMensajeTexto({ tipo: 'exito', texto: 'Información guardada' })
+        setMensaje({ tipo: 'exito', texto: 'Información guardada' })
         setNegocio(editandoNegocio)
         setEditandoNegocio(null)
       }
     } catch {
-      setMensajeTexto({ tipo: 'error', texto: 'Error al guardar' })
+      setMensaje({ tipo: 'error', texto: 'Error al guardar' })
     }
   }
 
   // Crear usuario
   const crearUsuario = async () => {
     if (!nuevoUsuario.email || !nuevoUsuario.password || !nuevoUsuario.nombre) {
-      setMensajeTexto({ tipo: 'error', texto: 'Todos los campos son obligatorios' })
+      setMensaje({ tipo: 'error', texto: 'Todos los campos son obligatorios' })
       return
     }
     try {
@@ -622,15 +499,15 @@ export default function AdminPanel() {
         body: JSON.stringify(nuevoUsuario)
       })
       if (res.ok) {
-        setMensajeTexto({ tipo: 'exito', texto: 'Usuario creado exitosamente' })
+        setMensaje({ tipo: 'exito', texto: 'Usuario creado exitosamente' })
         setNuevoUsuario({ email: '', password: '', nombre: '', rol: 'admin' })
         cargarUsuarios()
       } else {
         const data = await res.json()
-        setMensajeTexto({ tipo: 'error', texto: data.error || 'Error al crear usuario' })
+        setMensaje({ tipo: 'error', texto: data.error || 'Error al crear usuario' })
       }
     } catch {
-      setMensajeTexto({ tipo: 'error', texto: 'Error al crear usuario' })
+      setMensaje({ tipo: 'error', texto: 'Error al crear usuario' })
     }
   }
 
@@ -639,10 +516,10 @@ export default function AdminPanel() {
     if (!confirm('¿Eliminar este usuario?')) return
     try {
       await fetch(`/api/usuarios?id=${id}`, { method: 'DELETE' })
-      setMensajeTexto({ tipo: 'exito', texto: 'Usuario eliminado' })
+      setMensaje({ tipo: 'exito', texto: 'Usuario eliminado' })
       cargarUsuarios()
     } catch {
-      setMensajeTexto({ tipo: 'error', texto: 'Error al eliminar usuario' })
+      setMensaje({ tipo: 'error', texto: 'Error al eliminar usuario' })
     }
   }
 
@@ -658,7 +535,38 @@ export default function AdminPanel() {
       })
       cargarDatos()
     } catch {
-      setMensajeTexto({ tipo: 'error', texto: 'Error al agregar puntos' })
+      setMensaje({ tipo: 'error', texto: 'Error al agregar puntos' })
+    }
+  }
+
+  // Marcar compra manual (para el dueño desde su celular)
+  const marcarCompraManual = async (clienteId: string) => {
+    try {
+      const cliente = clientes.find(c => c.id === clienteId)
+      if (!cliente) return
+      
+      const puntosGanados = negocio?.puntosPorVisita || 1
+      
+      // Registrar la visita y agregar puntos
+      const res = await fetch('/api/visitas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          clienteId,
+          puntosGanados,
+          concepto: 'Compra registrada manualmente'
+        })
+      })
+      
+      if (res.ok) {
+        setMensaje({ tipo: 'exito', texto: `✅ Compra registrada a ${cliente.nombre}. +${puntosGanados} cupón` })
+        cargarDatos()
+      } else {
+        const data = await res.json()
+        setMensaje({ tipo: 'error', texto: data.error || 'Error al registrar compra' })
+      }
+    } catch {
+      setMensaje({ tipo: 'error', texto: 'Error al registrar compra' })
     }
   }
 
@@ -672,34 +580,34 @@ export default function AdminPanel() {
       })
       const data = await res.json()
       if (data.success) {
-        setMensajeTexto({ tipo: 'exito', texto: `Premio canjeado. Puntos restantes: ${data.puntosRestantes}` })
+        setMensaje({ tipo: 'exito', texto: `Premio canjeado. Puntos restantes: ${data.puntosRestantes}` })
         cargarDatos()
       } else {
-        setMensajeTexto({ tipo: 'error', texto: data.error })
+        setMensaje({ tipo: 'error', texto: data.error })
       }
     } catch {
-      setMensajeTexto({ tipo: 'error', texto: 'Error al canjear' })
+      setMensaje({ tipo: 'error', texto: 'Error al canjear' })
     }
   }
 
   if (!authChecked) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-xl text-muted-foreground">Verificando autenticación...</div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-xl text-gray-600">Verificando autenticación...</div>
       </div>
     )
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-xl text-muted-foreground">Cargando panel...</div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-xl text-gray-600">Cargando panel...</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
       {/* Header */}
       <header className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 py-4">
@@ -712,7 +620,7 @@ export default function AdminPanel() {
                 className="text-white/80 hover:text-white text-sm bg-white/20 px-3 py-1 rounded-lg flex items-center gap-2"
                 title={resolvedTheme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
               >
-                {isMounted && resolvedTheme === 'dark' ? '☀️ Claro' : '🌙 Oscuro'}
+                {mounted && resolvedTheme === 'dark' ? '☀️ Claro' : '🌙 Oscuro'}
               </button>
               <span className="text-sm opacity-90">
                 {usuarioActual?.nombre} ({usuarioActual?.rol === 'superadmin' ? '⭐ Super Admin' : 'Admin'})
@@ -726,16 +634,16 @@ export default function AdminPanel() {
       </header>
 
       {/* Navigation */}
-      <nav className="bg-card border-b shadow-sm sticky top-16 z-40">
+      <nav className="bg-white dark:bg-slate-800 border-b shadow-sm sticky top-16 z-40">
         <div className="max-w-6xl mx-auto px-4">
           <div className="flex overflow-x-auto gap-1 py-2">
             {[
               { id: 'dashboard', label: '📊 Dashboard' },
-              { id: 'escanear', label: '📷 Escanear QR' },
               { id: 'clientes', label: '👥 Clientes' },
               { id: 'visitas', label: '📋 Visitas' },
               { id: 'cobranzas', label: '💰 Cobranzas' },
               { id: 'marketing', label: '📣 Marketing' },
+              { id: 'qr', label: '📱 QR' },
               { id: 'configuracion', label: '⚙️ Config' },
               ...(usuarioActual?.rol === 'superadmin' ? [{ id: 'usuarios', label: '👤 Usuarios' }] : [])
             ].map(t => (
@@ -743,9 +651,9 @@ export default function AdminPanel() {
                 key={t.id}
                 onClick={() => cambiarTab(t.id as Tab)}
                 className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
-                  tab === t.id
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-muted text-muted-foreground hover:bg-accent'
+                  tab === t.id 
+                    ? 'bg-emerald-600 text-white' 
+                    : 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-600'
                 }`}
               >
                 {t.label}
@@ -759,48 +667,23 @@ export default function AdminPanel() {
       <main className="max-w-6xl mx-auto px-4 py-6">
         {mensaje && (
           <div className={`mb-4 p-4 rounded-lg ${
-            mensajeTexto.tipo === 'exito' 
+            mensaje.tipo === 'exito' 
               ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-300 dark:border-green-700' 
               : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-300 dark:border-red-700'
           }`}>
-            {mensajeTexto.texto}
+            {mensaje.texto}
           </div>
         )}
 
         {/* Dashboard */}
         {tab === 'dashboard' && estadisticas && (
           <div className="space-y-6">
-            {/* HEADER DEL NEGOCIO */}
-            <Card className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-4">
-                  {negocio?.logo ? (
-                    <img
-                      src={negocio.logo}
-                      alt="Logo"
-                      className="w-16 h-16 rounded-xl object-cover bg-white"
-                    />
-                  ) : (
-                    <div className="w-16 h-16 rounded-xl bg-white/20 flex items-center justify-center text-3xl">
-                      🏪
-                    </div>
-                  )}
-                  <div>
-                    <h1 className="text-2xl font-bold">{negocio?.nombre || 'Mi Negocio'}</h1>
-                    {negocio?.descripcion && (
-                      <p className="text-white/80 text-sm">{negocio.descripcion}</p>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
             {/* ENCABEZADO */}
             <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-foreground">📊 Panel de Control</h2>
-              <span className="text-sm text-muted-foreground">{new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+              <h2 className="text-2xl font-bold text-gray-800 dark:text-white">📊 Panel de Control</h2>
+              <span className="text-sm text-gray-500 dark:text-gray-400">{new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
             </div>
-
+            
             {/* FILA 1: CLIENTES */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
@@ -840,19 +723,19 @@ export default function AdminPanel() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="p-4 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg text-center">
                     <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{estadisticas.puntosTotales}</div>
-                    <div className="text-sm text-muted-foreground">Cupones en circulación</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">Cupones en circulación</div>
                   </div>
                   <div className="p-4 bg-purple-50 dark:bg-purple-900/30 rounded-lg text-center">
                     <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{estadisticas.premiosCanjeados}</div>
-                    <div className="text-sm text-muted-foreground">Premios canjeados</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">Premios canjeados</div>
                   </div>
                   <div className="p-4 bg-pink-50 dark:bg-pink-900/30 rounded-lg text-center">
                     <div className="text-2xl font-bold text-pink-600 dark:text-pink-400">{estadisticas.premiosMes}</div>
-                    <div className="text-sm text-muted-foreground">Canjeados este mes</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">Canjeados este mes</div>
                   </div>
                   <div className="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg text-center">
                     <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{negocio?.puntosParaPremio || 10}</div>
-                    <div className="text-sm text-muted-foreground">Cupones por premio</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">Cupones por premio</div>
                   </div>
                 </div>
               </CardContent>
@@ -864,22 +747,22 @@ export default function AdminPanel() {
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   <div className="p-4 bg-red-50 dark:bg-red-900/30 rounded-lg">
-                    <div className="text-xs text-muted-foreground mb-1">Pendientes</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Pendientes</div>
                     <div className="text-2xl font-bold text-red-600 dark:text-red-400">${estadisticas.montoPendiente.toFixed(2)}</div>
-                    <div className="text-sm text-muted-foreground">{estadisticas.cobranzasPendientes} cobranzas</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">{estadisticas.cobranzasPendientes} cobranzas</div>
                     {estadisticas.cobranzasVencidas > 0 && (
                       <div className="text-xs text-red-500 dark:text-red-400 mt-1">⚠️ {estadisticas.cobranzasVencidas} vencidas (${estadisticas.montoVencido.toFixed(2)})</div>
                     )}
                   </div>
                   <div className="p-4 bg-green-50 dark:bg-green-900/30 rounded-lg">
-                    <div className="text-xs text-muted-foreground mb-1">Pagadas</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Pagadas</div>
                     <div className="text-2xl font-bold text-green-600 dark:text-green-400">${estadisticas.montoPagado.toFixed(2)}</div>
-                    <div className="text-sm text-muted-foreground">{estadisticas.cobranzasPagadas} cobranzas</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">{estadisticas.cobranzasPagadas} cobranzas</div>
                   </div>
-                  <div className="p-4 bg-muted rounded-lg">
-                    <div className="text-xs text-muted-foreground mb-1">Total Gestión</div>
-                    <div className="text-2xl font-bold text-foreground">${(estadisticas.montoPendiente + estadisticas.montoPagado).toFixed(2)}</div>
-                    <div className="text-sm text-muted-foreground">{estadisticas.cobranzasPendientes + estadisticas.cobranzasPagadas} registros</div>
+                  <div className="p-4 bg-gray-50 dark:bg-slate-700 rounded-lg">
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Total Gestión</div>
+                    <div className="text-2xl font-bold text-gray-700 dark:text-gray-200">${(estadisticas.montoPendiente + estadisticas.montoPagado).toFixed(2)}</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">{estadisticas.cobranzasPendientes + estadisticas.cobranzasPagadas} registros</div>
                   </div>
                 </div>
               </CardContent>
@@ -892,15 +775,15 @@ export default function AdminPanel() {
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   <div className="p-4 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg text-center">
                     <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{estadisticas.campanasEnviadas}</div>
-                    <div className="text-sm text-muted-foreground">Campañas enviadas</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">Campañas enviadas</div>
                   </div>
                   <div className="p-4 bg-teal-50 dark:bg-teal-900/30 rounded-lg text-center">
                     <div className="text-2xl font-bold text-teal-600 dark:text-teal-400">{estadisticas.emailsEnviados}</div>
-                    <div className="text-sm text-muted-foreground">Emails de marketing</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">Emails de marketing</div>
                   </div>
                   <div className="p-4 bg-cyan-50 dark:bg-cyan-900/30 rounded-lg text-center">
                     <div className="text-2xl font-bold text-cyan-600 dark:text-cyan-400">{estadisticas.notificacionesEnviadas}</div>
-                    <div className="text-sm text-muted-foreground">Notificaciones totales</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">Notificaciones totales</div>
                   </div>
                 </div>
               </CardContent>
@@ -913,18 +796,18 @@ export default function AdminPanel() {
                 <CardHeader><CardTitle className="text-lg">🛒 Últimas Compras</CardTitle></CardHeader>
                 <CardContent>
                   {estadisticas.ultimasVisitas.length === 0 ? (
-                    <p className="text-muted-foreground text-center py-4">No hay compras registradas</p>
+                    <p className="text-gray-500 text-center py-4">No hay compras registradas</p>
                   ) : (
                     <div className="space-y-2">
                       {estadisticas.ultimasVisitas.map((v) => (
-                        <div key={v.id} className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                        <div key={v.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                           <div>
                             <div className="font-medium">{v.cliente?.nombre || 'Cliente'}</div>
-                            <div className="text-xs text-muted-foreground">{new Date(v.createdAt).toLocaleString('es-ES')}</div>
+                            <div className="text-xs text-gray-500">{new Date(v.createdAt).toLocaleString('es-ES')}</div>
                           </div>
                           <div className="text-right">
                             <div className="font-bold text-emerald-600">+{v.puntosGanados}</div>
-                            <div className="text-xs text-muted-foreground">cupón</div>
+                            <div className="text-xs text-gray-500">cupón</div>
                           </div>
                         </div>
                       ))}
@@ -938,18 +821,18 @@ export default function AdminPanel() {
                 <CardHeader><CardTitle className="text-lg">🏆 Top Clientes</CardTitle></CardHeader>
                 <CardContent>
                   {estadisticas.topClientes.length === 0 ? (
-                    <p className="text-muted-foreground text-center py-4">No hay clientes registrados</p>
+                    <p className="text-gray-500 text-center py-4">No hay clientes registrados</p>
                   ) : (
                     <div className="space-y-2">
                       {estadisticas.topClientes.map((c, i) => (
-                        <div key={c.id} className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                        <div key={c.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                           <div className="flex items-center gap-3">
                             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold ${i === 0 ? 'bg-yellow-500' : i === 1 ? 'bg-gray-400' : i === 2 ? 'bg-amber-600' : 'bg-gray-300'}`}>
                               {i + 1}
                             </div>
                             <div>
                               <div className="font-medium">{c.nombre}</div>
-                              <div className="text-xs text-muted-foreground">{c.totalVisitas} compras</div>
+                              <div className="text-xs text-gray-500">{c.totalVisitas} compras</div>
                             </div>
                           </div>
                           <div className="text-right">
@@ -962,111 +845,6 @@ export default function AdminPanel() {
                 </CardContent>
               </Card>
             </div>
-          </div>
-        )}
-
-        {/* Escanear QR */}
-        {tab === 'escanear' && (
-          <div className="max-w-lg mx-auto space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-xl text-center">📷 Escanear QR del Cliente</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="bg-emerald-50 dark:bg-emerald-900/30 p-4 rounded-lg text-center">
-                  <p className="text-emerald-700 dark:text-emerald-300">
-                    Escanea el código QR personal del cliente para registrar su visita
-                  </p>
-                </div>
-
-                {/* Escáner de cámara inline */}
-                {scannerError && (
-                  <div className="p-3 bg-red-100 text-red-700 rounded-lg text-center text-sm">
-                    {scannerError}
-                  </div>
-                )}
-
-                <div
-                  id="qr-reader-inline"
-                  style={{
-                    width: '100%',
-                    maxWidth: '400px',
-                    minHeight: scannerActivo ? '300px' : '0',
-                    margin: '0 auto'
-                  }}
-                />
-
-                {scannerCargando && (
-                  <div className="text-center py-6 text-muted-foreground">
-                    📷 Iniciando cámara...
-                  </div>
-                )}
-
-                {!scannerActivo && !scannerCargando && (
-                  <button
-                    onClick={iniciarScanner}
-                    className="w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold text-lg transition"
-                  >
-                    📷 Abrir Escáner QR
-                  </button>
-                )}
-
-                {scannerActivo && (
-                  <button
-                    onClick={detenerScanner}
-                    className="w-full py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-medium transition"
-                  >
-                    ⏹️ Cerrar Escáner
-                  </button>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">⌨️ Ingreso Manual</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-3 text-center">
-                  Si el QR no se puede escanear, ingresa el código manualmente:
-                </p>
-                <div className="flex gap-2">
-                  <Input
-                    value={codigoManual}
-                    onChange={(e) => setCodigoManual(e.target.value.toUpperCase())}
-                    placeholder="Ej: ABC12345"
-                    className="text-center text-xl font-mono"
-                    maxLength={8}
-                  />
-                  <Button onClick={() => registrarVisita(codigoManual)} size="lg" className="px-6">
-                    ✓ Registrar
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">👥 Clientes Recientes</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2 max-h-60 overflow-y-auto">
-                  {clientes.slice(0, 10).map(c => (
-                    <div
-                      key={c.id}
-                      className="flex justify-between items-center p-2 bg-muted rounded cursor-pointer hover:bg-accent"
-                      onClick={() => registrarVisita(c.codigoQR)}
-                    >
-                      <div>
-                        <span className="font-medium">{c.nombre}</span>
-                        <span className="text-xs text-muted-foreground ml-2 font-mono">{c.codigoQR}</span>
-                      </div>
-                      <span className="text-emerald-600 font-bold">{c.puntos} pts</span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
           </div>
         )}
 
@@ -1094,45 +872,19 @@ export default function AdminPanel() {
                     <Input value={nuevoCliente.notas} onChange={(e) => setNuevoCliente({...nuevoCliente, notas: e.target.value})} placeholder="Notas adicionales" />
                   </div>
                 </div>
-                <div className="flex items-center gap-4 mt-4">
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={nuevoCliente.enviarQR}
-                      onChange={(e) => setNuevoCliente({...nuevoCliente, enviarQR: e.target.checked})}
-                      className="w-4 h-4"
-                    />
-                    Enviar QR por email
-                  </label>
-                  <Button onClick={crearCliente}>Crear Cliente</Button>
-                </div>
+                <Button onClick={crearCliente} className="mt-4">Crear Cliente</Button>
               </CardContent>
             </Card>
             <Card>
               <CardHeader><CardTitle className="text-lg">👥 Clientes Registrados ({clientes.length})</CardTitle></CardHeader>
               <CardContent>
-                <div className="mb-4">
-                  <Input
-                    placeholder="🔍 Buscar por nombre, email o código QR..."
-                    value={busquedaCliente}
-                    onChange={(e) => setBusquedaCliente(e.target.value)}
-                  />
-                </div>
                 <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {clientes
-                    .filter(c => {
-                      if (!busquedaCliente) return true
-                      const termino = busquedaCliente.toLowerCase()
-                      return c.nombre.toLowerCase().includes(termino) ||
-                             c.email?.toLowerCase().includes(termino) ||
-                             c.codigoQR?.toLowerCase().includes(termino)
-                    })
-                    .map((c) => (
-                    <div key={c.id} className="p-4 bg-muted rounded-lg">
+                  {clientes.map((c) => (
+                    <div key={c.id} className="p-4 bg-gray-50 rounded-lg">
                       {editandoCliente?.id === c.id ? (
                         <div className="space-y-3">
                           <div className="grid grid-cols-2 gap-2">
-                            <Input value={editandoCliente.nombre || ''} onChange={(e) => setEditandoCliente({...editandoCliente, nombre: e.target.value})} />
+                            <Input value={editandoCliente.nombre} onChange={(e) => setEditandoCliente({...editandoCliente, nombre: e.target.value})} />
                             <Input value={editandoCliente.email || ''} onChange={(e) => setEditandoCliente({...editandoCliente, email: e.target.value})} />
                           </div>
                           <div className="flex gap-2">
@@ -1144,8 +896,7 @@ export default function AdminPanel() {
                         <div className="flex justify-between items-start">
                           <div>
                             <div className="font-medium">{c.nombre}</div>
-                            <div className="text-sm text-muted-foreground">{c.email}</div>
-                            <div className="text-xs text-emerald-600 font-mono mt-1">QR: {c.codigoQR} {c.qrEnviado ? '✅' : '⚠️'}</div>
+                            <div className="text-sm text-gray-500">{c.email}</div>
                           </div>
                           <div className="text-right">
                             <div className="text-xl font-bold text-emerald-600">{c.puntos} pts</div>
@@ -1154,15 +905,12 @@ export default function AdminPanel() {
                       )}
                       {editandoCliente?.id !== c.id && (
                         <div className="flex gap-2 mt-3 flex-wrap">
-                          <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => registrarVisita(c.codigoQR)}>🛒 Compra</Button>
-                          <Button size="sm" variant="outline" onClick={() => setClienteQRSeleccionado(c)}>📱 QR</Button>
-                          {!c.qrEnviado && (
-                            <Button size="sm" variant="outline" onClick={() => reenviarQR(c.id)}>📧 Enviar QR</Button>
-                          )}
+                          <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => marcarCompraManual(c.id)}>🛒 Compra</Button>
+                          <Button size="sm" variant="outline" onClick={() => setEditandoCliente(c)}>✏️ Editar</Button>
+                          <Button size="sm" variant="outline" onClick={() => agregarPuntos(c.id, 1)}>+1</Button>
                           {c.puntos >= (negocio?.puntosParaPremio || 10) && (
                             <Button size="sm" onClick={() => canjearPremio(c.id)}>🎁 Canjear</Button>
                           )}
-                          <Button size="sm" variant="outline" onClick={() => setEditandoCliente(c)}>✏️</Button>
                           <Button size="sm" variant="destructive" onClick={() => eliminarCliente(c.id)}>🗑️</Button>
                         </div>
                       )}
@@ -1209,11 +957,11 @@ export default function AdminPanel() {
               <CardContent>
                 <div className="space-y-2">
                   {usuarios.map((u) => (
-                    <div key={u.id} className="flex justify-between items-center p-4 bg-muted rounded-lg">
+                    <div key={u.id} className="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
                       <div>
                         <div className="font-medium">{u.nombre}</div>
-                        <div className="text-sm text-muted-foreground">{u.email}</div>
-                        <div className="text-xs text-muted-foreground">Rol: {u.rol === 'superadmin' ? '⭐ Super Admin' : 'Admin'}</div>
+                        <div className="text-sm text-gray-500">{u.email}</div>
+                        <div className="text-xs text-gray-400">Rol: {u.rol === 'superadmin' ? '⭐ Super Admin' : 'Admin'}</div>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className={`px-2 py-1 rounded text-xs ${u.activo ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
@@ -1231,6 +979,32 @@ export default function AdminPanel() {
           </div>
         )}
 
+        {/* QR */}
+        {tab === 'qr' && (
+          <div className="space-y-6">
+            <Card>
+              <CardHeader><CardTitle className="text-lg">📱 Código QR del Negocio</CardTitle></CardHeader>
+              <CardContent className="text-center">
+                <p className="text-gray-600 mb-6">Este es el código QR que tus clientes deben escanear para registrar sus compras.</p>
+                <div className="bg-white p-8 rounded-xl shadow-lg inline-block mb-6">
+                  <img src={generarQRImage(typeof window !== 'undefined' ? window.location.origin : '')} alt="QR" className="w-64 h-64 mx-auto" id="qr-image" />
+                </div>
+                <div className="space-y-3">
+                  <Button onClick={() => {
+                    const img = document.getElementById('qr-image') as HTMLImageElement
+                    if (img) {
+                      const link = document.createElement('a')
+                      link.href = img.src
+                      link.download = 'fideliqr-negocio.png'
+                      link.click()
+                    }
+                  }} className="w-full md:w-auto">📥 Descargar QR</Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         {/* Configuración */}
         {tab === 'configuracion' && negocio && configuracion && (
           <div className="space-y-6">
@@ -1241,7 +1015,7 @@ export default function AdminPanel() {
                 {editandoNegocio ? (
                   <div className="space-y-4">
                     {/* Logo */}
-                    <div className="flex flex-col items-center gap-4 p-4 bg-muted rounded-lg">
+                    <div className="flex flex-col items-center gap-4 p-4 bg-gray-50 dark:bg-slate-700 rounded-lg">
                       <Label className="text-base font-semibold">Logo del Negocio</Label>
                       {editandoNegocio.logo ? (
                         <div className="relative">
@@ -1258,8 +1032,8 @@ export default function AdminPanel() {
                           </button>
                         </div>
                       ) : (
-                        <div className="w-32 h-32 border-2 border-dashed border-border rounded-lg flex items-center justify-center bg-card">
-                          <span className="text-muted-foreground text-sm text-center">Sin logo</span>
+                        <div className="w-32 h-32 border-2 border-dashed border-gray-300 dark:border-slate-500 rounded-lg flex items-center justify-center bg-white dark:bg-slate-800">
+                          <span className="text-gray-400 text-sm text-center">Sin logo</span>
                         </div>
                       )}
                       <input
@@ -1269,7 +1043,7 @@ export default function AdminPanel() {
                           const file = e.target.files?.[0]
                           if (file) {
                             if (file.size > 5 * 1024 * 1024) {
-                              setMensajeTexto({ tipo: 'error', texto: 'La imagen debe ser menor a 5MB' })
+                              setMensaje({ tipo: 'error', texto: 'La imagen debe ser menor a 5MB' })
                               return
                             }
                             const reader = new FileReader()
@@ -1281,7 +1055,7 @@ export default function AdminPanel() {
                         }}
                         className="text-sm"
                       />
-                      <p className="text-xs text-muted-foreground">PNG, JPG o SVG. Máximo 5MB</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">PNG, JPG o SVG. Máximo 5MB</p>
                     </div>
                     
                     <div className="grid md:grid-cols-2 gap-4">
@@ -1327,36 +1101,36 @@ export default function AdminPanel() {
                             className="w-24 h-24 object-contain rounded-lg border-2 border-gray-200 dark:border-slate-600 bg-white"
                           />
                         ) : (
-                          <div className="w-24 h-24 border-2 border-dashed border-border rounded-lg flex items-center justify-center bg-muted">
-                            <span className="text-muted-foreground text-xs text-center">Sin logo</span>
+                          <div className="w-24 h-24 border-2 border-dashed border-gray-300 dark:border-slate-500 rounded-lg flex items-center justify-center bg-gray-50 dark:bg-slate-700">
+                            <span className="text-gray-400 text-xs text-center">Sin logo</span>
                           </div>
                         )}
-                        <span className="text-xs text-muted-foreground">Logo</span>
+                        <span className="text-xs text-gray-500">Logo</span>
                       </div>
                       
                       <div className="flex-1 grid md:grid-cols-2 gap-4">
                         <div className="p-4 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg">
-                          <p className="text-xs text-muted-foreground">Nombre</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Nombre</p>
                           <p className="text-lg font-bold text-emerald-700 dark:text-emerald-400">{negocio.nombre}</p>
                         </div>
-                        <div className="p-4 bg-muted rounded-lg">
-                          <p className="text-xs text-muted-foreground">Descripción</p>
+                        <div className="p-4 bg-gray-50 dark:bg-slate-700 rounded-lg">
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Descripción</p>
                           <p className="text-lg text-gray-700 dark:text-gray-300">{negocio.descripcion || 'Sin descripción'}</p>
                         </div>
                         <div className="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
-                          <p className="text-xs text-muted-foreground">Teléfono</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Teléfono</p>
                           <p className="text-lg text-blue-700 dark:text-blue-400">{negocio.telefono || 'No configurado'}</p>
                         </div>
                         <div className="p-4 bg-purple-50 dark:bg-purple-900/30 rounded-lg">
-                          <p className="text-xs text-muted-foreground">Email</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Email</p>
                           <p className="text-lg text-purple-700 dark:text-purple-400">{negocio.email || 'No configurado'}</p>
                         </div>
-                        <div className="p-4 bg-muted rounded-lg">
-                          <p className="text-xs text-muted-foreground">Dirección</p>
+                        <div className="p-4 bg-gray-50 dark:bg-slate-700 rounded-lg">
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Dirección</p>
                           <p className="text-lg text-gray-700 dark:text-gray-300">{negocio.direccion || 'No configurada'}</p>
                         </div>
                         <div className="p-4 bg-green-50 dark:bg-green-900/30 rounded-lg">
-                          <p className="text-xs text-muted-foreground">WhatsApp</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">WhatsApp</p>
                           <p className="text-lg text-green-700 dark:text-green-400">{negocio.whatsapp || 'No configurado'}</p>
                         </div>
                       </div>
@@ -1396,12 +1170,12 @@ export default function AdminPanel() {
                             body: JSON.stringify(editandoPremios)
                           })
                           if (res.ok) {
-                            setMensajeTexto({ tipo: 'exito', texto: 'Premios guardados' })
+                            setMensaje({ tipo: 'exito', texto: 'Premios guardados' })
                             setNegocio(editandoPremios)
                             setEditandoPremios(null)
                           }
                         } catch {
-                          setMensajeTexto({ tipo: 'error', texto: 'Error al guardar' })
+                          setMensaje({ tipo: 'error', texto: 'Error al guardar' })
                         }
                       }}>💾 Guardar</Button>
                       <Button variant="outline" onClick={() => setEditandoPremios(null)}>Cancelar</Button>
@@ -1412,15 +1186,15 @@ export default function AdminPanel() {
                     <div className="grid md:grid-cols-3 gap-4">
                       <div className="p-4 bg-emerald-50 rounded-lg text-center">
                         <div className="text-3xl font-bold text-emerald-600">{negocio.puntosPorVisita}</div>
-                        <div className="text-sm text-muted-foreground">Cupones por compra</div>
+                        <div className="text-sm text-gray-500">Cupones por compra</div>
                       </div>
                       <div className="p-4 bg-purple-50 rounded-lg text-center">
                         <div className="text-3xl font-bold text-purple-600">{negocio.puntosParaPremio}</div>
-                        <div className="text-sm text-muted-foreground">Cupones para premio</div>
+                        <div className="text-sm text-gray-500">Cupones para premio</div>
                       </div>
                       <div className="p-4 bg-amber-50 rounded-lg text-center">
                         <div className="text-xl font-bold text-amber-600">{negocio.premioDescripcion || 'Premio'}</div>
-                        <div className="text-sm text-muted-foreground">Premio</div>
+                        <div className="text-sm text-gray-500">Premio</div>
                       </div>
                     </div>
                     <Button onClick={() => setEditandoPremios(negocio)}>✏️ Editar Premios</Button>
@@ -1438,7 +1212,7 @@ export default function AdminPanel() {
                       <div>
                         <Label>Tiempo mínimo entre compras (segundos)</Label>
                         <Input type="number" value={editandoConfig.tiempoMinimoEntreVisitas} onChange={(e) => setEditandoConfig({...editandoConfig, tiempoMinimoEntreVisitas: parseInt(e.target.value) || 300})} />
-                        <p className="text-xs text-muted-foreground mt-1">Ej: 300 = 5 minutos</p>
+                        <p className="text-xs text-gray-400 mt-1">Ej: 300 = 5 minutos</p>
                       </div>
                       <div>
                         <Label>Máximo de compras diarias por cliente</Label>
@@ -1455,11 +1229,11 @@ export default function AdminPanel() {
                     <div className="grid md:grid-cols-2 gap-4">
                       <div className="p-4 bg-red-50 rounded-lg text-center">
                         <div className="text-3xl font-bold text-red-600">{configuracion.tiempoMinimoEntreVisitas}s</div>
-                        <div className="text-sm text-muted-foreground">Tiempo mínimo entre compras</div>
+                        <div className="text-sm text-gray-500">Tiempo mínimo entre compras</div>
                       </div>
                       <div className="p-4 bg-blue-50 rounded-lg text-center">
                         <div className="text-3xl font-bold text-blue-600">{configuracion.maxVisitasDiarias}</div>
-                        <div className="text-sm text-muted-foreground">Máximo compras diarias</div>
+                        <div className="text-sm text-gray-500">Máximo compras diarias</div>
                       </div>
                     </div>
                     <Button onClick={() => setEditandoConfig(configuracion)}>✏️ Editar Seguridad</Button>
@@ -1485,7 +1259,7 @@ export default function AdminPanel() {
                           <Input value={editandoNotificaciones.callmebotPhone || ''} onChange={(e) => setEditandoNotificaciones({...editandoNotificaciones, callmebotPhone: e.target.value})} placeholder="584141234567" />
                         </div>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-2">Obtén tu API en: callmebot.com</p>
+                      <p className="text-xs text-gray-400 mt-2">Obtén tu API en: callmebot.com</p>
                     </div>
                     
                     <div className="p-3 bg-blue-50 rounded-lg">
@@ -1500,7 +1274,7 @@ export default function AdminPanel() {
                           <Input value={editandoNotificaciones.telegramChatId || ''} onChange={(e) => setEditandoNotificaciones({...editandoNotificaciones, telegramChatId: e.target.value})} placeholder="-1001234567890" />
                         </div>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-2">Habla con @BotFather en Telegram para crear un bot</p>
+                      <p className="text-xs text-gray-400 mt-2">Habla con @BotFather en Telegram para crear un bot</p>
                     </div>
 
                     <div className="p-3 bg-purple-50 rounded-lg">
@@ -1509,7 +1283,7 @@ export default function AdminPanel() {
                         <Label className="text-xs">Email para recibir notificaciones</Label>
                         <Input type="email" value={editandoNotificaciones.email || ''} onChange={(e) => setEditandoNotificaciones({...editandoNotificaciones, email: e.target.value})} placeholder="tu-negocio@gmail.com" />
                       </div>
-                      <p className="text-xs text-muted-foreground mt-2">Recibirás notificaciones cuando los clientes marquen compras</p>
+                      <p className="text-xs text-gray-400 mt-2">Recibirás notificaciones cuando los clientes marquen compras</p>
                     </div>
 
                     <div className="flex gap-2">
@@ -1522,18 +1296,18 @@ export default function AdminPanel() {
                     <div className="grid md:grid-cols-3 gap-4">
                       <div className={`p-4 rounded-lg text-center ${negocio.callmebotApikey ? 'bg-green-50' : 'bg-gray-100'}`}>
                         <div className="text-2xl">{negocio.callmebotApikey ? '✅' : '❌'}</div>
-                        <div className="text-sm text-muted-foreground">WhatsApp</div>
-                        <div className="text-xs text-muted-foreground">{negocio.callmebotPhone || 'No configurado'}</div>
+                        <div className="text-sm text-gray-500">WhatsApp</div>
+                        <div className="text-xs text-gray-400">{negocio.callmebotPhone || 'No configurado'}</div>
                       </div>
                       <div className={`p-4 rounded-lg text-center ${negocio.telegramBotToken ? 'bg-blue-50' : 'bg-gray-100'}`}>
                         <div className="text-2xl">{negocio.telegramBotToken ? '✅' : '❌'}</div>
-                        <div className="text-sm text-muted-foreground">Telegram</div>
-                        <div className="text-xs text-muted-foreground">{negocio.telegramChatId || 'No configurado'}</div>
+                        <div className="text-sm text-gray-500">Telegram</div>
+                        <div className="text-xs text-gray-400">{negocio.telegramChatId || 'No configurado'}</div>
                       </div>
                       <div className={`p-4 rounded-lg text-center ${negocio.email ? 'bg-purple-50' : 'bg-gray-100'}`}>
                         <div className="text-2xl">{negocio.email ? '✅' : '❌'}</div>
-                        <div className="text-sm text-muted-foreground">Email</div>
-                        <div className="text-xs text-muted-foreground">{negocio.email || 'No configurado'}</div>
+                        <div className="text-sm text-gray-500">Email</div>
+                        <div className="text-xs text-gray-400">{negocio.email || 'No configurado'}</div>
                       </div>
                     </div>
                     <Button onClick={() => setEditandoNotificaciones(negocio)}>⚙️ Configurar Notificaciones</Button>
@@ -1551,17 +1325,17 @@ export default function AdminPanel() {
             <CardContent>
               <div className="space-y-2 max-h-96 overflow-y-auto">
                 {visitas.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-4">No hay visitas</p>
+                  <p className="text-gray-500 text-center py-4">No hay visitas</p>
                 ) : (
                   visitas.map((v) => (
-                    <div key={v.id} className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                    <div key={v.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                       <div>
                         <span className="font-medium">{v.cliente.nombre}</span>
-                        <span className="text-muted-foreground text-sm ml-2">{v.cliente.telefono}</span>
+                        <span className="text-gray-400 text-sm ml-2">{v.cliente.telefono}</span>
                       </div>
                       <div className="text-right">
                         <span className="text-emerald-600 font-bold">+{v.puntosGanados}</span>
-                        <span className="text-muted-foreground text-xs block">{new Date(v.createdAt).toLocaleString()}</span>
+                        <span className="text-gray-400 text-xs block">{new Date(v.createdAt).toLocaleString()}</span>
                       </div>
                     </div>
                   ))
@@ -1574,6 +1348,109 @@ export default function AdminPanel() {
         {/* Cobranzas */}
         {tab === 'cobranzas' && (
           <div className="space-y-6">
+            {/* Configuración de Recordatorios Automáticos */}
+            <Card className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border-amber-200 dark:border-amber-800">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  ⏰ Recordatorios Automáticos
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="recordatoriosAuto"
+                      checked={configuracion?.recordatoriosAutomaticos ?? true}
+                      onChange={async (e) => {
+                        if (!configuracion) return
+                        try {
+                          const res = await fetch('/api/configuracion', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              ...configuracion,
+                              recordatoriosAutomaticos: e.target.checked
+                            })
+                          })
+                          if (res.ok) {
+                            setMensaje({ tipo: 'exito', texto: 'Configuración actualizada' })
+                            cargarDatos()
+                          }
+                        } catch {
+                          setMensaje({ tipo: 'error', texto: 'Error al guardar' })
+                        }
+                      }}
+                      className="w-5 h-5 rounded"
+                    />
+                    <Label htmlFor="recordatoriosAuto" className="cursor-pointer">
+                      Activar recordatorios automáticos
+                    </Label>
+                  </div>
+                  <div>
+                    <Label className="text-sm">Días antes del vencimiento</Label>
+                    <Input 
+                      type="number" 
+                      value={configuracion?.diasRecordatorio || 3}
+                      onChange={async (e) => {
+                        if (!configuracion) return
+                        try {
+                          const res = await fetch('/api/configuracion', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              ...configuracion,
+                              diasRecordatorio: parseInt(e.target.value) || 3
+                            })
+                          })
+                          if (res.ok) cargarDatos()
+                        } catch {
+                          console.error('Error')
+                        }
+                      }}
+                      className="w-24"
+                      min={1}
+                      max={30}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Enviar recordatorio X días antes</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm">Días después del vencimiento</Label>
+                    <Input 
+                      type="number" 
+                      value={configuracion?.diasRecordatorioVencido || 7}
+                      onChange={async (e) => {
+                        if (!configuracion) return
+                        try {
+                          const res = await fetch('/api/configuracion', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              ...configuracion,
+                              diasRecordatorioVencido: parseInt(e.target.value) || 7
+                            })
+                          })
+                          if (res.ok) cargarDatos()
+                        } catch {
+                          console.error('Error')
+                        }
+                      }}
+                      className="w-24"
+                      min={1}
+                      max={30}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Recordar cada X días si está vencido</p>
+                  </div>
+                </div>
+                <div className="mt-4 p-3 bg-amber-100 dark:bg-amber-900/30 rounded-lg text-sm text-amber-700 dark:text-amber-300">
+                  💡 <strong>Configuración del Cron Job:</strong> Para activar los recordatorios automáticos, configura un cron job en <code className="bg-amber-200 dark:bg-amber-800 px-1 rounded">cron-job.org</code> que llame a:
+                  <code className="block mt-2 bg-white dark:bg-slate-800 p-2 rounded text-xs">
+                    GET /api/cron/cobranzas?secret=TU_SECRET
+                  </code>
+                </div>
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader><CardTitle className="text-lg">➕ Nueva Cobranza</CardTitle></CardHeader>
               <CardContent>
@@ -1616,13 +1493,13 @@ export default function AdminPanel() {
               <CardContent>
                 <div className="space-y-2 max-h-96 overflow-y-auto">
                   {cobranzas.length === 0 ? (
-                    <p className="text-muted-foreground text-center py-4">No hay cobranzas</p>
+                    <p className="text-gray-500 text-center py-4">No hay cobranzas</p>
                   ) : (
                     cobranzas.map((c) => (
-                      <div key={c.id} className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                      <div key={c.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                         <div>
                           <div className="font-medium">{c.cliente.nombre}</div>
-                          <div className="text-sm text-muted-foreground">{c.concepto}</div>
+                          <div className="text-sm text-gray-500">{c.concepto}</div>
                           <div className={`text-xs mt-1 px-2 py-0.5 rounded inline-block ${
                             c.estado === 'pendiente' ? 'bg-yellow-100 text-yellow-700' : 
                             c.estado === 'pagado' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
@@ -1653,35 +1530,59 @@ export default function AdminPanel() {
         {/* Marketing */}
         {tab === 'marketing' && (
           <div className="space-y-6">
+            {/* Nueva Campaña */}
             <Card>
-              <CardHeader><CardTitle className="text-lg">📣 Nueva Campaña</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  📣 Nueva Campaña de Marketing
+                </CardTitle>
+              </CardHeader>
               <CardContent>
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
-                    <Label>Tipo</Label>
-                    <select className="w-full h-10 px-3 rounded-lg border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-800" value={nuevoMarketing.tipo} onChange={(e) => setNuevoMarketing({...nuevoMarketing, tipo: e.target.value})}>
+                    <Label>Tipo de Campaña</Label>
+                    <select 
+                      className="w-full h-10 px-3 rounded-lg border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-800" 
+                      value={nuevoMarketing.tipo} 
+                      onChange={(e) => setNuevoMarketing({...nuevoMarketing, tipo: e.target.value})}
+                    >
                       <option value="promocion">📢 Promoción</option>
                       <option value="recordatorio">🔔 Recordatorio</option>
                       <option value="oferta">🏷️ Oferta Especial</option>
+                      <option value="bienvenida">👋 Bienvenida</option>
+                      <option value="aniversario">🎂 Aniversario</option>
                     </select>
                   </div>
                   <div>
                     <Label>Destinatarios</Label>
-                    <select className="w-full h-10 px-3 rounded-lg border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-800" value={nuevoMarketing.destinatarios} onChange={(e) => setNuevoMarketing({...nuevoMarketing, destinatarios: e.target.value})}>
+                    <select 
+                      className="w-full h-10 px-3 rounded-lg border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-800" 
+                      value={nuevoMarketing.destinatarios} 
+                      onChange={(e) => setNuevoMarketing({...nuevoMarketing, destinatarios: e.target.value})}
+                    >
                       <option value="todos">👥 Todos los clientes</option>
                       <option value="inactivos">😴 Clientes inactivos</option>
                     </select>
                   </div>
                   <div className="md:col-span-2">
-                    <Label>Título</Label>
-                    <Input value={nuevoMarketing.titulo} onChange={(e) => setNuevoMarketing({...nuevoMarketing, titulo: e.target.value})} placeholder="Ej: ¡Oferta especial de fin de semana!" />
+                    <Label>Título del Mensaje</Label>
+                    <Input 
+                      value={nuevoMarketing.titulo} 
+                      onChange={(e) => setNuevoMarketing({...nuevoMarketing, titulo: e.target.value})} 
+                      placeholder="Ej: ¡Oferta especial de fin de semana!" 
+                    />
                   </div>
                   <div className="md:col-span-2">
                     <Label>Mensaje</Label>
-                    <textarea className="w-full h-24 px-3 py-2 rounded-lg border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-800" value={nuevoMarketing.mensaje} onChange={(e) => setNuevoMarketing({...nuevoMarketing, mensaje: e.target.value})} placeholder="Escribe tu mensajeTexto aquí..." />
+                    <textarea 
+                      className="w-full h-32 px-3 py-2 rounded-lg border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-800 resize-none" 
+                      value={nuevoMarketing.mensaje} 
+                      onChange={(e) => setNuevoMarketing({...nuevoMarketing, mensaje: e.target.value})} 
+                      placeholder="Escribe tu mensaje aquí. Puedes usar saltos de línea." 
+                    />
                   </div>
-
-                  {/* Sección de Programación */}
+                  
+                  {/* Scheduling Section */}
                   <div className="md:col-span-2 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border-2 border-blue-200 dark:border-blue-800">
                     <h4 className="font-semibold text-blue-700 dark:text-blue-400 mb-3 flex items-center gap-2">
                       📅 Programación de Envío
@@ -1689,19 +1590,19 @@ export default function AdminPanel() {
                     <div className="grid md:grid-cols-2 gap-4">
                       <div>
                         <Label className="text-sm">Fecha y Hora de Envío</Label>
-                        <Input
-                          type="datetime-local"
-                          value={nuevoMarketing.fechaProgramada}
-                          onChange={(e) => setNuevoMarketing({...nuevoMarketing, fechaProgramada: e.target.value})}
+                        <Input 
+                          type="datetime-local" 
+                          value={nuevoMarketing.fechaProgramada} 
+                          onChange={(e) => setNuevoMarketing({...nuevoMarketing, fechaProgramada: e.target.value})} 
                           min={new Date().toISOString().slice(0, 16)}
                         />
                         <p className="text-xs text-gray-500 mt-1">Deja vacío para enviar inmediatamente</p>
                       </div>
                       <div>
                         <Label className="text-sm">Repetir Automáticamente</Label>
-                        <select
-                          className="w-full h-10 px-3 rounded-lg border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-800"
-                          value={nuevoMarketing.repetir || ''}
+                        <select 
+                          className="w-full h-10 px-3 rounded-lg border-2 border-gray-200 dark:border-slate-600 dark:bg-slate-800" 
+                          value={nuevoMarketing.repetir || ''} 
                           onChange={(e) => setNuevoMarketing({...nuevoMarketing, repetir: e.target.value})}
                         >
                           <option value="">No repetir (envío único)</option>
@@ -1713,6 +1614,7 @@ export default function AdminPanel() {
                     </div>
                   </div>
                 </div>
+                
                 <div className="flex gap-3 mt-6">
                   <Button onClick={crearCampana} className="flex-1">
                     {nuevoMarketing.fechaProgramada ? '📅 Programar Campaña' : '📤 Enviar Ahora'}
@@ -1720,59 +1622,69 @@ export default function AdminPanel() {
                 </div>
               </CardContent>
             </Card>
-
-            {/* Resumen de Campañas */}
+            
+            {/* Campaigns Summary */}
             <div className="grid md:grid-cols-3 gap-4">
               <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
                 <CardContent className="p-4 text-center">
-                  <div className="text-3xl font-bold">{marketingItems.filter(m => m.estado === 'programado').length}</div>
+                  <div className="text-3xl font-bold">{marketing.filter(m => m.estado === 'programado').length}</div>
                   <div className="text-sm opacity-90">Programadas</div>
                 </CardContent>
               </Card>
               <Card className="bg-gradient-to-br from-green-500 to-emerald-600 text-white">
                 <CardContent className="p-4 text-center">
-                  <div className="text-3xl font-bold">{marketingItems.filter(m => m.estado === 'enviado').length}</div>
+                  <div className="text-3xl font-bold">{marketing.filter(m => m.estado === 'enviado').length}</div>
                   <div className="text-sm opacity-90">Enviadas</div>
                 </CardContent>
               </Card>
               <Card className="bg-gradient-to-br from-purple-500 to-pink-600 text-white">
                 <CardContent className="p-4 text-center">
-                  <div className="text-3xl font-bold">{marketingItems.reduce((sum, m) => sum + (m.enviados || 0), 0)}</div>
-                  <div className="text-sm opacity-90">Total Emails</div>
+                  <div className="text-3xl font-bold">{marketing.reduce((sum, m) => sum + (m.enviados || 0), 0)}</div>
+                  <div className="text-sm opacity-90">Total Emails Enviados</div>
                 </CardContent>
               </Card>
             </div>
-
-            {/* Campañas Programadas */}
-            {marketingItems.filter(m => m.estado === 'programado').length > 0 && (
+            
+            {/* Scheduled Campaigns */}
+            {marketing.filter(m => m.estado === 'programado').length > 0 && (
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center gap-2">
                     📅 Campañas Programadas
                     <span className="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full">
-                      {marketingItems.filter(m => m.estado === 'programado').length}
+                      {marketing.filter(m => m.estado === 'programado').length}
                     </span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3 max-h-64 overflow-y-auto">
-                    {marketingItems.filter(m => m.estado === 'programado').map((m) => (
+                    {marketing.filter(m => m.estado === 'programado').map((m) => (
                       <div key={m.id} className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
                         <div className="flex justify-between items-start">
                           <div>
                             <span className="font-semibold text-blue-800 dark:text-blue-300">{m.titulo}</span>
                             <div className="text-sm text-gray-500 mt-1">
-                              📅 {m.fechaProgramada ? new Date(m.fechaProgramada).toLocaleString('es-ES') : 'Sin fecha'}
+                              📅 {m.fechaProgramada ? new Date(m.fechaProgramada).toLocaleString('es-ES', {
+                                weekday: 'short',
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              }) : 'Sin fecha'}
                             </div>
                             {m.repetir && (
                               <div className="text-xs text-purple-600 dark:text-purple-400 mt-1">
                                 🔁 Se repite: {m.repetir}
                               </div>
                             )}
+                            <div className="text-xs text-gray-400 mt-1">
+                              Para: {m.destinatarios === 'todos' ? 'Todos los clientes' : 'Clientes inactivos'}
+                            </div>
                           </div>
                           <div className="flex gap-2">
-                            <Button
-                              size="sm"
+                            <Button 
+                              size="sm" 
                               variant="outline"
                               onClick={async () => {
                                 try {
@@ -1781,38 +1693,42 @@ export default function AdminPanel() {
                                     headers: { 'Content-Type': 'application/json' },
                                     body: JSON.stringify({ id: m.id, accion: 'enviar-ahora' })
                                   })
+                                  const data = await res.json()
                                   if (res.ok) {
-                                    setMensajeTexto({ tipo: 'exito', texto: 'Campaña enviada' })
+                                    setMensaje({ tipo: 'exito', texto: `Campaña enviada a ${data.enviados} clientes` })
                                     cargarMarketing()
+                                  } else {
+                                    setMensaje({ tipo: 'error', texto: data.error || 'Error al enviar' })
                                   }
                                 } catch {
-                                  setMensajeTexto({ tipo: 'error', texto: 'Error al enviar' })
+                                  setMensaje({ tipo: 'error', texto: 'Error al enviar campaña' })
                                 }
                               }}
                             >
-                              📤 Enviar
+                              📤 Enviar Ahora
                             </Button>
-                            <Button
-                              size="sm"
+                            <Button 
+                              size="sm" 
                               variant="outline"
                               onClick={async () => {
-                                if (!confirm('¿Cancelar esta campaña?')) return
+                                if (!confirm('¿Cancelar esta campaña programada?')) return
                                 try {
                                   const res = await fetch('/api/marketing', {
                                     method: 'PUT',
                                     headers: { 'Content-Type': 'application/json' },
                                     body: JSON.stringify({ id: m.id, accion: 'cancelar' })
                                   })
+                                  const data = await res.json()
                                   if (res.ok) {
-                                    setMensajeTexto({ tipo: 'exito', texto: 'Campaña cancelada' })
+                                    setMensaje({ tipo: 'exito', texto: 'Campaña cancelada' })
                                     cargarMarketing()
                                   }
                                 } catch {
-                                  setMensajeTexto({ tipo: 'error', texto: 'Error al cancelar' })
+                                  setMensaje({ tipo: 'error', texto: 'Error al cancelar' })
                                 }
                               }}
                             >
-                              ❌
+                              ❌ Cancelar
                             </Button>
                           </div>
                         </div>
@@ -1823,19 +1739,24 @@ export default function AdminPanel() {
                 </CardContent>
               </Card>
             )}
-
-            {/* Historial de Campañas */}
+            
+            {/* Sent Campaigns History */}
             <Card>
-              <CardHeader><CardTitle className="text-lg">📋 Historial de Campañas</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  📋 Historial de Campañas
+                </CardTitle>
+              </CardHeader>
               <CardContent>
-                <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {marketingItems.length === 0 ? (
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {marketing.length === 0 ? (
                     <div className="text-center py-8">
                       <div className="text-5xl mb-3">📭</div>
                       <p className="text-gray-500">No hay campañas creadas</p>
+                      <p className="text-sm text-gray-400 mt-1">Crea tu primera campaña arriba</p>
                     </div>
                   ) : (
-                   marketingItems.map((m) => (
+                    marketing.map((m) => (
                       <div key={m.id} className={`p-4 rounded-lg border ${
                         m.estado === 'enviado' ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' :
                         m.estado === 'cancelado' ? 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 opacity-60' :
@@ -1857,6 +1778,11 @@ export default function AdminPanel() {
                                  m.estado === 'programado' ? '📅 Programado' :
                                  '⏳ Pendiente'}
                               </span>
+                              {m.repetir && m.estado === 'enviado' && (
+                                <span className="text-xs text-purple-600 dark:text-purple-400">
+                                  🔁 {m.repetir}
+                                </span>
+                              )}
                             </div>
                             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{m.mensaje}</p>
                             <div className="flex gap-4 text-xs text-gray-400 mt-2">
@@ -1872,8 +1798,30 @@ export default function AdminPanel() {
                               {m.fechaProgramada && m.estado === 'programado' && (
                                 <span>📅 {new Date(m.fechaProgramada).toLocaleString('es-ES')}</span>
                               )}
+                              <span>🕐 {new Date(m.createdAt).toLocaleDateString('es-ES')}</span>
                             </div>
                           </div>
+                          {m.estado === 'programado' && (
+                            <Button 
+                              size="sm" 
+                              variant="ghost"
+                              className="text-red-500 hover:text-red-700"
+                              onClick={async () => {
+                                if (!confirm('¿Eliminar esta campaña programada?')) return
+                                try {
+                                  const res = await fetch(`/api/marketing?id=${m.id}`, { method: 'DELETE' })
+                                  if (res.ok) {
+                                    setMensaje({ tipo: 'exito', texto: 'Campaña eliminada' })
+                                    cargarMarketing()
+                                  }
+                                } catch {
+                                  setMensaje({ tipo: 'error', texto: 'Error al eliminar' })
+                                }
+                              }}
+                            >
+                              🗑️
+                            </Button>
+                          )}
                         </div>
                       </div>
                     ))
@@ -1881,77 +1829,36 @@ export default function AdminPanel() {
                 </div>
               </CardContent>
             </Card>
+            
+            {/* Cron Setup Info */}
+            <Card className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border-indigo-200 dark:border-indigo-800">
+              <CardContent className="p-4">
+                <h4 className="font-semibold text-indigo-700 dark:text-indigo-400 mb-2 flex items-center gap-2">
+                  ⚙️ Configuración de Envío Automático
+                </h4>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                  Para que las campañas programadas se envíen automáticamente, configura un cron job:
+                </p>
+                <div className="bg-gray-900 text-green-400 p-3 rounded-lg font-mono text-xs overflow-x-auto">
+                  <div className="text-gray-500"># Cada 5 minutos</div>
+                  <div>*/5 * * * * curl &quot;{typeof window !== 'undefined' ? window.location.origin : 'https://tu-dominio.com'}/api/cron/marketing?secret=TU_SECRET&quot;</div>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  💡 El secreto por defecto es: <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">fideliqr-cron-secret-2024</code>
+                </p>
+              </CardContent>
+            </Card>
           </div>
         )}
       </main>
 
-      {/* Modal de QR del Cliente */}
-      {clienteQRSeleccionado && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setClienteQRSeleccionado(null)}>
-          <div className="bg-card rounded-2xl p-6 max-w-sm w-full shadow-2xl" onClick={e => e.stopPropagation()}>
-            <div className="text-center">
-              <h3 className="text-xl font-bold text-foreground mb-2">{clienteQRSeleccionado.nombre}</h3>
-              <p className="text-sm text-muted-foreground mb-4">{clienteQRSeleccionado.email}</p>
-
-              <div className="bg-white p-4 rounded-xl inline-block mb-4">
-                <QRCodeSVG
-                  id="qr-cliente"
-                  value={`${typeof window !== 'undefined' ? window.location.origin : ''}/cliente/${clienteQRSeleccionado.codigoQR}`}
-                  size={200}
-                  level="H"
-                  includeMargin={true}
-                />
-              </div>
-
-              <div className="bg-gray-100 dark:bg-slate-700 px-4 py-2 rounded-lg mb-4">
-                <span className="font-mono text-lg font-bold text-emerald-600">{clienteQRSeleccionado.codigoQR}</span>
-              </div>
-
-              <div className="flex gap-2 justify-center">
-                <Button
-                  onClick={() => {
-                    const svg = document.getElementById('qr-cliente')
-                    if (svg) {
-                      const svgData = new XMLSerializer().serializeToString(svg)
-                      const canvas = document.createElement('canvas')
-                      const ctx = canvas.getContext('2d')
-                      const img = new Image()
-                      img.onload = () => {
-                        canvas.width = img.width
-                        canvas.height = img.height
-                        ctx?.fillRect(0, 0, canvas.width, canvas.height)
-                        ctx?.drawImage(img, 0, 0)
-                        const a = document.createElement('a')
-                        a.download = `qr-${clienteQRSeleccionado.codigoQR}.png`
-                        a.href = canvas.toDataURL('image/png')
-                        a.click()
-                      }
-                      img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)))
-                    }
-                  }}
-                  className="bg-emerald-500 hover:bg-emerald-600"
-                >
-                  📥 Descargar PNG
-                </Button>
-                <Button variant="outline" onClick={() => setClienteQRSeleccionado(null)}>
-                  Cerrar
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <footer className="bg-card border-t py-4 mt-8">
-        <div className="max-w-6xl mx-auto px-4 text-center text-muted-foreground text-sm">
-          FideliQR-cliente - Sistema de Fidelización | Panel de Administración
+      <footer className="bg-white dark:bg-slate-800 border-t py-4 mt-8">
+        <div className="max-w-6xl mx-auto px-4 text-center text-gray-500 dark:text-gray-400 text-sm">
+          FideliQR V1 - Sistema de Fidelización | Panel de Administración
         </div>
       </footer>
     </div>
   )
 }
-// v2.2
-// Forzar deploy Fri Mar 20 04:58:06 UTC 2026
-// Build fix: Fri Mar 20 15:34:13 UTC 2026
-// Deploy fix: 1774020962
-// Force deploy: Fri Mar 20 22:18:48 UTC 2026
+// Deploy fix: 1774020971
+// Deploy: 1774024080
