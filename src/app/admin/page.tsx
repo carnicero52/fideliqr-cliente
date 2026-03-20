@@ -668,22 +668,22 @@ export default function AdminPanel() {
 
   if (!authChecked) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-xl text-gray-600">Verificando autenticación...</div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-xl text-muted-foreground">Verificando autenticación...</div>
       </div>
     )
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-xl text-gray-600">Cargando panel...</div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-xl text-muted-foreground">Cargando panel...</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
+    <div className="min-h-screen bg-background text-foreground">
       {/* Header */}
       <header className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 py-4">
@@ -710,7 +710,7 @@ export default function AdminPanel() {
       </header>
 
       {/* Navigation */}
-      <nav className="bg-white dark:bg-slate-800 border-b shadow-sm sticky top-16 z-40">
+      <nav className="bg-card border-b shadow-sm sticky top-16 z-40">
         <div className="max-w-6xl mx-auto px-4">
           <div className="flex overflow-x-auto gap-1 py-2">
             {[
@@ -727,9 +727,9 @@ export default function AdminPanel() {
                 key={t.id}
                 onClick={() => cambiarTab(t.id as Tab)}
                 className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
-                  tab === t.id 
-                    ? 'bg-emerald-600 text-white' 
-                    : 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-600'
+                  tab === t.id
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-muted text-muted-foreground hover:bg-accent'
                 }`}
               >
                 {t.label}
@@ -756,8 +756,8 @@ export default function AdminPanel() {
           <div className="space-y-6">
             {/* ENCABEZADO */}
             <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-gray-800 dark:text-white">📊 Panel de Control</h2>
-              <span className="text-sm text-gray-500 dark:text-gray-400">{new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+              <h2 className="text-2xl font-bold text-foreground">📊 Panel de Control</h2>
+              <span className="text-sm text-muted-foreground">{new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
             </div>
             
             {/* FILA 1: CLIENTES */}
@@ -799,19 +799,19 @@ export default function AdminPanel() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="p-4 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg text-center">
                     <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{estadisticas.puntosTotales}</div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">Cupones en circulación</div>
+                    <div className="text-sm text-muted-foreground">Cupones en circulación</div>
                   </div>
                   <div className="p-4 bg-purple-50 dark:bg-purple-900/30 rounded-lg text-center">
                     <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{estadisticas.premiosCanjeados}</div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">Premios canjeados</div>
+                    <div className="text-sm text-muted-foreground">Premios canjeados</div>
                   </div>
                   <div className="p-4 bg-pink-50 dark:bg-pink-900/30 rounded-lg text-center">
                     <div className="text-2xl font-bold text-pink-600 dark:text-pink-400">{estadisticas.premiosMes}</div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">Canjeados este mes</div>
+                    <div className="text-sm text-muted-foreground">Canjeados este mes</div>
                   </div>
                   <div className="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg text-center">
                     <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{negocio?.puntosParaPremio || 10}</div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">Cupones por premio</div>
+                    <div className="text-sm text-muted-foreground">Cupones por premio</div>
                   </div>
                 </div>
               </CardContent>
@@ -823,22 +823,22 @@ export default function AdminPanel() {
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   <div className="p-4 bg-red-50 dark:bg-red-900/30 rounded-lg">
-                    <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Pendientes</div>
+                    <div className="text-xs text-muted-foreground mb-1">Pendientes</div>
                     <div className="text-2xl font-bold text-red-600 dark:text-red-400">${estadisticas.montoPendiente.toFixed(2)}</div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">{estadisticas.cobranzasPendientes} cobranzas</div>
+                    <div className="text-sm text-muted-foreground">{estadisticas.cobranzasPendientes} cobranzas</div>
                     {estadisticas.cobranzasVencidas > 0 && (
                       <div className="text-xs text-red-500 dark:text-red-400 mt-1">⚠️ {estadisticas.cobranzasVencidas} vencidas (${estadisticas.montoVencido.toFixed(2)})</div>
                     )}
                   </div>
                   <div className="p-4 bg-green-50 dark:bg-green-900/30 rounded-lg">
-                    <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Pagadas</div>
+                    <div className="text-xs text-muted-foreground mb-1">Pagadas</div>
                     <div className="text-2xl font-bold text-green-600 dark:text-green-400">${estadisticas.montoPagado.toFixed(2)}</div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">{estadisticas.cobranzasPagadas} cobranzas</div>
+                    <div className="text-sm text-muted-foreground">{estadisticas.cobranzasPagadas} cobranzas</div>
                   </div>
-                  <div className="p-4 bg-gray-50 dark:bg-slate-700 rounded-lg">
-                    <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Total Gestión</div>
-                    <div className="text-2xl font-bold text-gray-700 dark:text-gray-200">${(estadisticas.montoPendiente + estadisticas.montoPagado).toFixed(2)}</div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">{estadisticas.cobranzasPendientes + estadisticas.cobranzasPagadas} registros</div>
+                  <div className="p-4 bg-muted rounded-lg">
+                    <div className="text-xs text-muted-foreground mb-1">Total Gestión</div>
+                    <div className="text-2xl font-bold text-foreground">${(estadisticas.montoPendiente + estadisticas.montoPagado).toFixed(2)}</div>
+                    <div className="text-sm text-muted-foreground">{estadisticas.cobranzasPendientes + estadisticas.cobranzasPagadas} registros</div>
                   </div>
                 </div>
               </CardContent>
@@ -851,15 +851,15 @@ export default function AdminPanel() {
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   <div className="p-4 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg text-center">
                     <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{estadisticas.campanasEnviadas}</div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">Campañas enviadas</div>
+                    <div className="text-sm text-muted-foreground">Campañas enviadas</div>
                   </div>
                   <div className="p-4 bg-teal-50 dark:bg-teal-900/30 rounded-lg text-center">
                     <div className="text-2xl font-bold text-teal-600 dark:text-teal-400">{estadisticas.emailsEnviados}</div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">Emails de marketing</div>
+                    <div className="text-sm text-muted-foreground">Emails de marketing</div>
                   </div>
                   <div className="p-4 bg-cyan-50 dark:bg-cyan-900/30 rounded-lg text-center">
                     <div className="text-2xl font-bold text-cyan-600 dark:text-cyan-400">{estadisticas.notificacionesEnviadas}</div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">Notificaciones totales</div>
+                    <div className="text-sm text-muted-foreground">Notificaciones totales</div>
                   </div>
                 </div>
               </CardContent>
@@ -872,18 +872,18 @@ export default function AdminPanel() {
                 <CardHeader><CardTitle className="text-lg">🛒 Últimas Compras</CardTitle></CardHeader>
                 <CardContent>
                   {estadisticas.ultimasVisitas.length === 0 ? (
-                    <p className="text-gray-500 text-center py-4">No hay compras registradas</p>
+                    <p className="text-muted-foreground text-center py-4">No hay compras registradas</p>
                   ) : (
                     <div className="space-y-2">
                       {estadisticas.ultimasVisitas.map((v) => (
-                        <div key={v.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                        <div key={v.id} className="flex justify-between items-center p-3 bg-muted rounded-lg">
                           <div>
                             <div className="font-medium">{v.cliente?.nombre || 'Cliente'}</div>
-                            <div className="text-xs text-gray-500">{new Date(v.createdAt).toLocaleString('es-ES')}</div>
+                            <div className="text-xs text-muted-foreground">{new Date(v.createdAt).toLocaleString('es-ES')}</div>
                           </div>
                           <div className="text-right">
                             <div className="font-bold text-emerald-600">+{v.puntosGanados}</div>
-                            <div className="text-xs text-gray-500">cupón</div>
+                            <div className="text-xs text-muted-foreground">cupón</div>
                           </div>
                         </div>
                       ))}
@@ -897,18 +897,18 @@ export default function AdminPanel() {
                 <CardHeader><CardTitle className="text-lg">🏆 Top Clientes</CardTitle></CardHeader>
                 <CardContent>
                   {estadisticas.topClientes.length === 0 ? (
-                    <p className="text-gray-500 text-center py-4">No hay clientes registrados</p>
+                    <p className="text-muted-foreground text-center py-4">No hay clientes registrados</p>
                   ) : (
                     <div className="space-y-2">
                       {estadisticas.topClientes.map((c, i) => (
-                        <div key={c.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                        <div key={c.id} className="flex justify-between items-center p-3 bg-muted rounded-lg">
                           <div className="flex items-center gap-3">
                             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold ${i === 0 ? 'bg-yellow-500' : i === 1 ? 'bg-gray-400' : i === 2 ? 'bg-amber-600' : 'bg-gray-300'}`}>
                               {i + 1}
                             </div>
                             <div>
                               <div className="font-medium">{c.nombre}</div>
-                              <div className="text-xs text-gray-500">{c.totalVisitas} compras</div>
+                              <div className="text-xs text-muted-foreground">{c.totalVisitas} compras</div>
                             </div>
                           </div>
                           <div className="text-right">
@@ -956,7 +956,7 @@ export default function AdminPanel() {
                 />
 
                 {scannerCargando && (
-                  <div className="text-center py-6 text-gray-500">
+                  <div className="text-center py-6 text-muted-foreground">
                     📷 Iniciando cámara...
                   </div>
                 )}
@@ -986,7 +986,7 @@ export default function AdminPanel() {
                 <CardTitle className="text-lg">⌨️ Ingreso Manual</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-gray-500 mb-3 text-center">
+                <p className="text-sm text-muted-foreground mb-3 text-center">
                   Si el QR no se puede escanear, ingresa el código manualmente:
                 </p>
                 <div className="flex gap-2">
@@ -1013,12 +1013,12 @@ export default function AdminPanel() {
                   {clientes.slice(0, 10).map(c => (
                     <div
                       key={c.id}
-                      className="flex justify-between items-center p-2 bg-gray-50 dark:bg-slate-700 rounded cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-600"
+                      className="flex justify-between items-center p-2 bg-muted rounded cursor-pointer hover:bg-accent"
                       onClick={() => registrarVisita(c.codigoQR)}
                     >
                       <div>
                         <span className="font-medium">{c.nombre}</span>
-                        <span className="text-xs text-gray-500 ml-2 font-mono">{c.codigoQR}</span>
+                        <span className="text-xs text-muted-foreground ml-2 font-mono">{c.codigoQR}</span>
                       </div>
                       <span className="text-emerald-600 font-bold">{c.puntos} pts</span>
                     </div>
@@ -1087,7 +1087,7 @@ export default function AdminPanel() {
                              c.codigoQR?.toLowerCase().includes(termino)
                     })
                     .map((c) => (
-                    <div key={c.id} className="p-4 bg-gray-50 dark:bg-slate-700 rounded-lg">
+                    <div key={c.id} className="p-4 bg-muted rounded-lg">
                       {editandoCliente?.id === c.id ? (
                         <div className="space-y-3">
                           <div className="grid grid-cols-2 gap-2">
@@ -1103,7 +1103,7 @@ export default function AdminPanel() {
                         <div className="flex justify-between items-start">
                           <div>
                             <div className="font-medium">{c.nombre}</div>
-                            <div className="text-sm text-gray-500">{c.email}</div>
+                            <div className="text-sm text-muted-foreground">{c.email}</div>
                             <div className="text-xs text-emerald-600 font-mono mt-1">QR: {c.codigoQR} {c.qrEnviado ? '✅' : '⚠️'}</div>
                           </div>
                           <div className="text-right">
@@ -1168,11 +1168,11 @@ export default function AdminPanel() {
               <CardContent>
                 <div className="space-y-2">
                   {usuarios.map((u) => (
-                    <div key={u.id} className="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
+                    <div key={u.id} className="flex justify-between items-center p-4 bg-muted rounded-lg">
                       <div>
                         <div className="font-medium">{u.nombre}</div>
-                        <div className="text-sm text-gray-500">{u.email}</div>
-                        <div className="text-xs text-gray-400">Rol: {u.rol === 'superadmin' ? '⭐ Super Admin' : 'Admin'}</div>
+                        <div className="text-sm text-muted-foreground">{u.email}</div>
+                        <div className="text-xs text-muted-foreground">Rol: {u.rol === 'superadmin' ? '⭐ Super Admin' : 'Admin'}</div>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className={`px-2 py-1 rounded text-xs ${u.activo ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
@@ -1200,7 +1200,7 @@ export default function AdminPanel() {
                 {editandoNegocio ? (
                   <div className="space-y-4">
                     {/* Logo */}
-                    <div className="flex flex-col items-center gap-4 p-4 bg-gray-50 dark:bg-slate-700 rounded-lg">
+                    <div className="flex flex-col items-center gap-4 p-4 bg-muted rounded-lg">
                       <Label className="text-base font-semibold">Logo del Negocio</Label>
                       {editandoNegocio.logo ? (
                         <div className="relative">
@@ -1217,8 +1217,8 @@ export default function AdminPanel() {
                           </button>
                         </div>
                       ) : (
-                        <div className="w-32 h-32 border-2 border-dashed border-gray-300 dark:border-slate-500 rounded-lg flex items-center justify-center bg-white dark:bg-slate-800">
-                          <span className="text-gray-400 text-sm text-center">Sin logo</span>
+                        <div className="w-32 h-32 border-2 border-dashed border-border rounded-lg flex items-center justify-center bg-card">
+                          <span className="text-muted-foreground text-sm text-center">Sin logo</span>
                         </div>
                       )}
                       <input
@@ -1240,7 +1240,7 @@ export default function AdminPanel() {
                         }}
                         className="text-sm"
                       />
-                      <p className="text-xs text-gray-500 dark:text-gray-400">PNG, JPG o SVG. Máximo 5MB</p>
+                      <p className="text-xs text-muted-foreground">PNG, JPG o SVG. Máximo 5MB</p>
                     </div>
                     
                     <div className="grid md:grid-cols-2 gap-4">
@@ -1286,36 +1286,36 @@ export default function AdminPanel() {
                             className="w-24 h-24 object-contain rounded-lg border-2 border-gray-200 dark:border-slate-600 bg-white"
                           />
                         ) : (
-                          <div className="w-24 h-24 border-2 border-dashed border-gray-300 dark:border-slate-500 rounded-lg flex items-center justify-center bg-gray-50 dark:bg-slate-700">
-                            <span className="text-gray-400 text-xs text-center">Sin logo</span>
+                          <div className="w-24 h-24 border-2 border-dashed border-border rounded-lg flex items-center justify-center bg-muted">
+                            <span className="text-muted-foreground text-xs text-center">Sin logo</span>
                           </div>
                         )}
-                        <span className="text-xs text-gray-500">Logo</span>
+                        <span className="text-xs text-muted-foreground">Logo</span>
                       </div>
                       
                       <div className="flex-1 grid md:grid-cols-2 gap-4">
                         <div className="p-4 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg">
-                          <p className="text-xs text-gray-500 dark:text-gray-400">Nombre</p>
+                          <p className="text-xs text-muted-foreground">Nombre</p>
                           <p className="text-lg font-bold text-emerald-700 dark:text-emerald-400">{negocio.nombre}</p>
                         </div>
-                        <div className="p-4 bg-gray-50 dark:bg-slate-700 rounded-lg">
-                          <p className="text-xs text-gray-500 dark:text-gray-400">Descripción</p>
+                        <div className="p-4 bg-muted rounded-lg">
+                          <p className="text-xs text-muted-foreground">Descripción</p>
                           <p className="text-lg text-gray-700 dark:text-gray-300">{negocio.descripcion || 'Sin descripción'}</p>
                         </div>
                         <div className="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
-                          <p className="text-xs text-gray-500 dark:text-gray-400">Teléfono</p>
+                          <p className="text-xs text-muted-foreground">Teléfono</p>
                           <p className="text-lg text-blue-700 dark:text-blue-400">{negocio.telefono || 'No configurado'}</p>
                         </div>
                         <div className="p-4 bg-purple-50 dark:bg-purple-900/30 rounded-lg">
-                          <p className="text-xs text-gray-500 dark:text-gray-400">Email</p>
+                          <p className="text-xs text-muted-foreground">Email</p>
                           <p className="text-lg text-purple-700 dark:text-purple-400">{negocio.email || 'No configurado'}</p>
                         </div>
-                        <div className="p-4 bg-gray-50 dark:bg-slate-700 rounded-lg">
-                          <p className="text-xs text-gray-500 dark:text-gray-400">Dirección</p>
+                        <div className="p-4 bg-muted rounded-lg">
+                          <p className="text-xs text-muted-foreground">Dirección</p>
                           <p className="text-lg text-gray-700 dark:text-gray-300">{negocio.direccion || 'No configurada'}</p>
                         </div>
                         <div className="p-4 bg-green-50 dark:bg-green-900/30 rounded-lg">
-                          <p className="text-xs text-gray-500 dark:text-gray-400">WhatsApp</p>
+                          <p className="text-xs text-muted-foreground">WhatsApp</p>
                           <p className="text-lg text-green-700 dark:text-green-400">{negocio.whatsapp || 'No configurado'}</p>
                         </div>
                       </div>
@@ -1371,15 +1371,15 @@ export default function AdminPanel() {
                     <div className="grid md:grid-cols-3 gap-4">
                       <div className="p-4 bg-emerald-50 rounded-lg text-center">
                         <div className="text-3xl font-bold text-emerald-600">{negocio.puntosPorVisita}</div>
-                        <div className="text-sm text-gray-500">Cupones por compra</div>
+                        <div className="text-sm text-muted-foreground">Cupones por compra</div>
                       </div>
                       <div className="p-4 bg-purple-50 rounded-lg text-center">
                         <div className="text-3xl font-bold text-purple-600">{negocio.puntosParaPremio}</div>
-                        <div className="text-sm text-gray-500">Cupones para premio</div>
+                        <div className="text-sm text-muted-foreground">Cupones para premio</div>
                       </div>
                       <div className="p-4 bg-amber-50 rounded-lg text-center">
                         <div className="text-xl font-bold text-amber-600">{negocio.premioDescripcion || 'Premio'}</div>
-                        <div className="text-sm text-gray-500">Premio</div>
+                        <div className="text-sm text-muted-foreground">Premio</div>
                       </div>
                     </div>
                     <Button onClick={() => setEditandoPremios(negocio)}>✏️ Editar Premios</Button>
@@ -1397,7 +1397,7 @@ export default function AdminPanel() {
                       <div>
                         <Label>Tiempo mínimo entre compras (segundos)</Label>
                         <Input type="number" value={editandoConfig.tiempoMinimoEntreVisitas} onChange={(e) => setEditandoConfig({...editandoConfig, tiempoMinimoEntreVisitas: parseInt(e.target.value) || 300})} />
-                        <p className="text-xs text-gray-400 mt-1">Ej: 300 = 5 minutos</p>
+                        <p className="text-xs text-muted-foreground mt-1">Ej: 300 = 5 minutos</p>
                       </div>
                       <div>
                         <Label>Máximo de compras diarias por cliente</Label>
@@ -1414,11 +1414,11 @@ export default function AdminPanel() {
                     <div className="grid md:grid-cols-2 gap-4">
                       <div className="p-4 bg-red-50 rounded-lg text-center">
                         <div className="text-3xl font-bold text-red-600">{configuracion.tiempoMinimoEntreVisitas}s</div>
-                        <div className="text-sm text-gray-500">Tiempo mínimo entre compras</div>
+                        <div className="text-sm text-muted-foreground">Tiempo mínimo entre compras</div>
                       </div>
                       <div className="p-4 bg-blue-50 rounded-lg text-center">
                         <div className="text-3xl font-bold text-blue-600">{configuracion.maxVisitasDiarias}</div>
-                        <div className="text-sm text-gray-500">Máximo compras diarias</div>
+                        <div className="text-sm text-muted-foreground">Máximo compras diarias</div>
                       </div>
                     </div>
                     <Button onClick={() => setEditandoConfig(configuracion)}>✏️ Editar Seguridad</Button>
@@ -1444,7 +1444,7 @@ export default function AdminPanel() {
                           <Input value={editandoNotificaciones.callmebotPhone || ''} onChange={(e) => setEditandoNotificaciones({...editandoNotificaciones, callmebotPhone: e.target.value})} placeholder="584141234567" />
                         </div>
                       </div>
-                      <p className="text-xs text-gray-400 mt-2">Obtén tu API en: callmebot.com</p>
+                      <p className="text-xs text-muted-foreground mt-2">Obtén tu API en: callmebot.com</p>
                     </div>
                     
                     <div className="p-3 bg-blue-50 rounded-lg">
@@ -1459,7 +1459,7 @@ export default function AdminPanel() {
                           <Input value={editandoNotificaciones.telegramChatId || ''} onChange={(e) => setEditandoNotificaciones({...editandoNotificaciones, telegramChatId: e.target.value})} placeholder="-1001234567890" />
                         </div>
                       </div>
-                      <p className="text-xs text-gray-400 mt-2">Habla con @BotFather en Telegram para crear un bot</p>
+                      <p className="text-xs text-muted-foreground mt-2">Habla con @BotFather en Telegram para crear un bot</p>
                     </div>
 
                     <div className="p-3 bg-purple-50 rounded-lg">
@@ -1468,7 +1468,7 @@ export default function AdminPanel() {
                         <Label className="text-xs">Email para recibir notificaciones</Label>
                         <Input type="email" value={editandoNotificaciones.email || ''} onChange={(e) => setEditandoNotificaciones({...editandoNotificaciones, email: e.target.value})} placeholder="tu-negocio@gmail.com" />
                       </div>
-                      <p className="text-xs text-gray-400 mt-2">Recibirás notificaciones cuando los clientes marquen compras</p>
+                      <p className="text-xs text-muted-foreground mt-2">Recibirás notificaciones cuando los clientes marquen compras</p>
                     </div>
 
                     <div className="flex gap-2">
@@ -1481,18 +1481,18 @@ export default function AdminPanel() {
                     <div className="grid md:grid-cols-3 gap-4">
                       <div className={`p-4 rounded-lg text-center ${negocio.callmebotApikey ? 'bg-green-50' : 'bg-gray-100'}`}>
                         <div className="text-2xl">{negocio.callmebotApikey ? '✅' : '❌'}</div>
-                        <div className="text-sm text-gray-500">WhatsApp</div>
-                        <div className="text-xs text-gray-400">{negocio.callmebotPhone || 'No configurado'}</div>
+                        <div className="text-sm text-muted-foreground">WhatsApp</div>
+                        <div className="text-xs text-muted-foreground">{negocio.callmebotPhone || 'No configurado'}</div>
                       </div>
                       <div className={`p-4 rounded-lg text-center ${negocio.telegramBotToken ? 'bg-blue-50' : 'bg-gray-100'}`}>
                         <div className="text-2xl">{negocio.telegramBotToken ? '✅' : '❌'}</div>
-                        <div className="text-sm text-gray-500">Telegram</div>
-                        <div className="text-xs text-gray-400">{negocio.telegramChatId || 'No configurado'}</div>
+                        <div className="text-sm text-muted-foreground">Telegram</div>
+                        <div className="text-xs text-muted-foreground">{negocio.telegramChatId || 'No configurado'}</div>
                       </div>
                       <div className={`p-4 rounded-lg text-center ${negocio.email ? 'bg-purple-50' : 'bg-gray-100'}`}>
                         <div className="text-2xl">{negocio.email ? '✅' : '❌'}</div>
-                        <div className="text-sm text-gray-500">Email</div>
-                        <div className="text-xs text-gray-400">{negocio.email || 'No configurado'}</div>
+                        <div className="text-sm text-muted-foreground">Email</div>
+                        <div className="text-xs text-muted-foreground">{negocio.email || 'No configurado'}</div>
                       </div>
                     </div>
                     <Button onClick={() => setEditandoNotificaciones(negocio)}>⚙️ Configurar Notificaciones</Button>
@@ -1510,17 +1510,17 @@ export default function AdminPanel() {
             <CardContent>
               <div className="space-y-2 max-h-96 overflow-y-auto">
                 {visitas.length === 0 ? (
-                  <p className="text-gray-500 text-center py-4">No hay visitas</p>
+                  <p className="text-muted-foreground text-center py-4">No hay visitas</p>
                 ) : (
                   visitas.map((v) => (
-                    <div key={v.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                    <div key={v.id} className="flex justify-between items-center p-3 bg-muted rounded-lg">
                       <div>
                         <span className="font-medium">{v.cliente.nombre}</span>
-                        <span className="text-gray-400 text-sm ml-2">{v.cliente.telefono}</span>
+                        <span className="text-muted-foreground text-sm ml-2">{v.cliente.telefono}</span>
                       </div>
                       <div className="text-right">
                         <span className="text-emerald-600 font-bold">+{v.puntosGanados}</span>
-                        <span className="text-gray-400 text-xs block">{new Date(v.createdAt).toLocaleString()}</span>
+                        <span className="text-muted-foreground text-xs block">{new Date(v.createdAt).toLocaleString()}</span>
                       </div>
                     </div>
                   ))
@@ -1575,13 +1575,13 @@ export default function AdminPanel() {
               <CardContent>
                 <div className="space-y-2 max-h-96 overflow-y-auto">
                   {cobranzas.length === 0 ? (
-                    <p className="text-gray-500 text-center py-4">No hay cobranzas</p>
+                    <p className="text-muted-foreground text-center py-4">No hay cobranzas</p>
                   ) : (
                     cobranzas.map((c) => (
-                      <div key={c.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                      <div key={c.id} className="flex justify-between items-center p-3 bg-muted rounded-lg">
                         <div>
                           <div className="font-medium">{c.cliente.nombre}</div>
-                          <div className="text-sm text-gray-500">{c.concepto}</div>
+                          <div className="text-sm text-muted-foreground">{c.concepto}</div>
                           <div className={`text-xs mt-1 px-2 py-0.5 rounded inline-block ${
                             c.estado === 'pendiente' ? 'bg-yellow-100 text-yellow-700' : 
                             c.estado === 'pagado' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
@@ -1648,15 +1648,15 @@ export default function AdminPanel() {
               <CardContent>
                 <div className="space-y-2 max-h-96 overflow-y-auto">
                   {marketing.length === 0 ? (
-                    <p className="text-gray-500 text-center py-4">No hay campañas</p>
+                    <p className="text-muted-foreground text-center py-4">No hay campañas</p>
                   ) : (
                     marketing.map((m) => (
-                      <div key={m.id} className="p-3 bg-gray-50 rounded-lg">
+                      <div key={m.id} className="p-3 bg-muted rounded-lg">
                         <div className="flex justify-between">
                           <span className="font-medium">{m.titulo}</span>
                           <span className={`text-xs px-2 py-1 rounded ${m.estado === 'enviado' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>{m.estado}</span>
                         </div>
-                        <p className="text-sm text-gray-500 mt-1">{m.mensaje}</p>
+                        <p className="text-sm text-muted-foreground mt-1">{m.mensaje}</p>
                       </div>
                     ))
                   )}
@@ -1670,10 +1670,10 @@ export default function AdminPanel() {
       {/* Modal de QR del Cliente */}
       {clienteQRSeleccionado && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setClienteQRSeleccionado(null)}>
-          <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl" onClick={e => e.stopPropagation()}>
+          <div className="bg-card rounded-2xl p-6 max-w-sm w-full shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="text-center">
-              <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2">{clienteQRSeleccionado.nombre}</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">{clienteQRSeleccionado.email}</p>
+              <h3 className="text-xl font-bold text-foreground mb-2">{clienteQRSeleccionado.nombre}</h3>
+              <p className="text-sm text-muted-foreground mb-4">{clienteQRSeleccionado.email}</p>
 
               <div className="bg-white p-4 rounded-xl inline-block mb-4">
                 <QRCodeSVG
@@ -1724,8 +1724,8 @@ export default function AdminPanel() {
         </div>
       )}
 
-      <footer className="bg-white dark:bg-slate-800 border-t py-4 mt-8">
-        <div className="max-w-6xl mx-auto px-4 text-center text-gray-500 dark:text-gray-400 text-sm">
+      <footer className="bg-card border-t py-4 mt-8">
+        <div className="max-w-6xl mx-auto px-4 text-center text-muted-foreground text-sm">
           FideliQR V1 - Sistema de Fidelización | Panel de Administración
         </div>
       </footer>
