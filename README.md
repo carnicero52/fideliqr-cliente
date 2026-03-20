@@ -1,4 +1,4 @@
-# 🎯 FideliQR FULL V1
+# 🎯 FideliQR-cliente
 
 Sistema de Fidelización de Clientes con código QR - Panel Público y Administrativo
 
