@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Html5Qrcode } from 'html5-qrcode'
+import { QRCodeSVG } from 'qrcode.react'
 
 // Types
 interface Cliente {
@@ -218,6 +219,7 @@ export default function AdminPanel() {
   const [editandoNotificaciones, setEditandoNotificaciones] = useState<Negocio | null>(null)
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [busquedaCliente, setBusquedaCliente] = useState('')
+  const [clienteQRSeleccionado, setClienteQRSeleccionado] = useState<Cliente | null>(null)
 
   // Hydration fix for theme
   useEffect(() => {
@@ -1111,6 +1113,7 @@ export default function AdminPanel() {
                       )}
                       {editandoCliente?.id !== c.id && (
                         <div className="flex gap-2 mt-3 flex-wrap">
+                          <Button size="sm" variant="outline" onClick={() => setClienteQRSeleccionado(c)}>📱 Ver QR</Button>
                           <Button size="sm" variant="outline" onClick={() => registrarVisita(c.codigoQR)}>+1 Visita</Button>
                           {!c.qrEnviado && (
                             <Button size="sm" variant="outline" onClick={() => reenviarQR(c.id)}>📧 Enviar QR</Button>
@@ -1664,6 +1667,63 @@ export default function AdminPanel() {
         )}
       </main>
 
+      {/* Modal de QR del Cliente */}
+      {clienteQRSeleccionado && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setClienteQRSeleccionado(null)}>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="text-center">
+              <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2">{clienteQRSeleccionado.nombre}</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">{clienteQRSeleccionado.email}</p>
+
+              <div className="bg-white p-4 rounded-xl inline-block mb-4">
+                <QRCodeSVG
+                  id="qr-cliente"
+                  value={`${typeof window !== 'undefined' ? window.location.origin : ''}/cliente/${clienteQRSeleccionado.codigoQR}`}
+                  size={200}
+                  level="H"
+                  includeMargin={true}
+                />
+              </div>
+
+              <div className="bg-gray-100 dark:bg-slate-700 px-4 py-2 rounded-lg mb-4">
+                <span className="font-mono text-lg font-bold text-emerald-600">{clienteQRSeleccionado.codigoQR}</span>
+              </div>
+
+              <div className="flex gap-2 justify-center">
+                <Button
+                  onClick={() => {
+                    const svg = document.getElementById('qr-cliente')
+                    if (svg) {
+                      const svgData = new XMLSerializer().serializeToString(svg)
+                      const canvas = document.createElement('canvas')
+                      const ctx = canvas.getContext('2d')
+                      const img = new Image()
+                      img.onload = () => {
+                        canvas.width = img.width
+                        canvas.height = img.height
+                        ctx?.fillRect(0, 0, canvas.width, canvas.height)
+                        ctx?.drawImage(img, 0, 0)
+                        const a = document.createElement('a')
+                        a.download = `qr-${clienteQRSeleccionado.codigoQR}.png`
+                        a.href = canvas.toDataURL('image/png')
+                        a.click()
+                      }
+                      img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)))
+                    }
+                  }}
+                  className="bg-emerald-500 hover:bg-emerald-600"
+                >
+                  📥 Descargar PNG
+                </Button>
+                <Button variant="outline" onClick={() => setClienteQRSeleccionado(null)}>
+                  Cerrar
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <footer className="bg-white dark:bg-slate-800 border-t py-4 mt-8">
         <div className="max-w-6xl mx-auto px-4 text-center text-gray-500 dark:text-gray-400 text-sm">
           FideliQR V1 - Sistema de Fidelización | Panel de Administración
@@ -1672,4 +1732,4 @@ export default function AdminPanel() {
     </div>
   )
 }
-// v2.1
+// v2.2
