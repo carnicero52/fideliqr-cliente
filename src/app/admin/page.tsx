@@ -759,11 +759,11 @@ export default function AdminPanel() {
       <main className="max-w-6xl mx-auto px-4 py-6">
         {mensaje && (
           <div className={`mb-4 p-4 rounded-lg ${
-            mensaje.tipo === 'exito' 
+            mensajeTexto.tipo === 'exito' 
               ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-300 dark:border-green-700' 
               : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-300 dark:border-red-700'
           }`}>
-            {mensaje.texto}
+            {mensajeTexto.texto}
           </div>
         )}
 
@@ -1737,7 +1737,7 @@ export default function AdminPanel() {
               </Card>
               <Card className="bg-gradient-to-br from-purple-500 to-pink-600 text-white">
                 <CardContent className="p-4 text-center">
-                  <div className="text-3xl font-bold">{marketing.reduce((sum, m) => sum + (m.enviados || 0), 0)}</div>
+                  <div className="text-3xl font-bold">{marketingItems.reduce((sum, m) => sum + (m.enviados || 0), 0)}</div>
                   <div className="text-sm opacity-90">Total Emails</div>
                 </CardContent>
               </Card>
