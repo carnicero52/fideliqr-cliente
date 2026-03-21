@@ -246,9 +246,9 @@ export default function AdminPanel() {
   }, [])
 
   // Cargar datos
-  const cargarDatos = useCallback(async () => {
+  const cargarDatos = useCallback(async (silencioso = false) => {
     if (!usuarioActual) return
-    setLoading(true)
+    if (!silencioso) setLoading(true)
     try {
       const [estRes, cliRes, negRes, cfgRes] = await Promise.all([
         fetch('/api/estadisticas'),
@@ -286,7 +286,7 @@ export default function AdminPanel() {
     if (!authChecked || !usuarioActual) return
     
     const intervalo = setInterval(() => {
-      cargarDatos()
+      cargarDatos(true) // silencioso, sin mostrar loading
     }, 10000) // 10 segundos
     
     return () => clearInterval(intervalo)
