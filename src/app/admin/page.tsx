@@ -1604,7 +1604,7 @@ const cargarUsuarios = async () => {
 
         {/* Cobranzas */}
         {tab === 'cobranzas' && (
-        <div className='space-y-4'>
+          <div className="space-y-6">
           <div className='flex justify-end'>
             <Button 
               onClick={limpiarHistorialCobranzas}
@@ -1614,9 +1614,6 @@ const cargarUsuarios = async () => {
               🗑️ Limpiar Historial de Cobranzas
             </Button>
           </div>
-        </div>
-      )
-          <div className="space-y-6">
             <Card>
               <CardHeader><CardTitle className="text-lg">➕ Nueva Cobranza</CardTitle></CardHeader>
               <CardContent>
@@ -1695,7 +1692,7 @@ const cargarUsuarios = async () => {
 
         {/* Marketing */}
         {tab === 'marketing' && (
-        <div className='space-y-4'>
+          <div className="space-y-6">
           <div className='flex justify-end'>
             <Button 
               onClick={limpiarHistorialMarketing}
@@ -1705,9 +1702,6 @@ const cargarUsuarios = async () => {
               🗑️ Limpiar Campañas Enviadas
             </Button>
           </div>
-        </div>
-      )
-          <div className="space-y-6">
             <Card>
               <CardHeader><CardTitle className="text-lg">📣 Nueva Campaña</CardTitle></CardHeader>
               <CardContent>
