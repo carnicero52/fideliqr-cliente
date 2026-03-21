@@ -91,3 +91,42 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: 'Error al enviar recordatorio' }, { status: 500 })
   }
 }
+
+// DELETE - Eliminar cobranza o limpiar historial
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+    const accion = searchParams.get('accion')
+
+    // Limpiar historial de cobranzas pagadas y vencidas
+    if (accion === 'limpiar-historial') {
+      const resultado = await db.cobranza.deleteMany({
+        where: {
+          estado: {
+            in: ['pagado', 'vencido']
+          }
+        }
+      })
+      
+      return NextResponse.json({ 
+        success: true, 
+        eliminadas: resultado.count,
+        mensaje: `Se eliminaron ${resultado.count} cobranzas del historial`
+      })
+    }
+
+    if (!id) {
+      return NextResponse.json({ error: 'ID requerido' }, { status: 400 })
+    }
+
+    await db.cobranza.delete({
+      where: { id }
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Error al eliminar cobranza:', error)
+    return NextResponse.json({ error: 'Error al eliminar cobranza' }, { status: 500 })
+  }
+}
