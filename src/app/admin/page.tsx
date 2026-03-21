@@ -281,8 +281,50 @@ export default function AdminPanel() {
     }
   }, [authChecked, usuarioActual, cargarDatos])
 
+  // Actualización automática cada 10 segundos
+  useEffect(() => {
+    if (!authChecked || !usuarioActual) return
+    
+    const intervalo = setInterval(() => {
+      cargarDatos()
+    }, 10000) // 10 segundos
+    
+    return () => clearInterval(intervalo)
+  }, [authChecked, usuarioActual, cargarDatos])
+
   // Cargar usuarios
-  const cargarUsuarios = async () => {
+  
+  // Limpiar historial de cobranzas
+  const limpiarHistorialCobranzas = async () => {
+    if (!confirm('¿Eliminar TODAS las cobranzas pagadas y vencidas? Esta acción no se puede deshacer.')) return
+    try {
+      const res = await fetch('/api/cobranzas?accion=limpiar-historial', { method: 'DELETE' })
+      if (res.ok) {
+        setNotificacion({ tipo: 'exito', texto: 'Historial de cobranzas limpiado' })
+        cargarCobranzas()
+        cargarDatos()
+      }
+    } catch {
+      setNotificacion({ tipo: 'error', texto: 'Error al limpiar historial' })
+    }
+  }
+
+  // Limpiar historial de marketing
+  const limpiarHistorialMarketing = async () => {
+    if (!confirm('¿Eliminar TODAS las campañas enviadas? Esta acción no se puede deshacer.')) return
+    try {
+      const res = await fetch('/api/marketing?accion=limpiar-historial', { method: 'DELETE' })
+      if (res.ok) {
+        setNotificacion({ tipo: 'exito', texto: 'Historial de marketing limpiado' })
+        cargarMarketing()
+        cargarDatos()
+      }
+    } catch {
+      setNotificacion({ tipo: 'error', texto: 'Error al limpiar historial' })
+    }
+  }
+
+const cargarUsuarios = async () => {
     const res = await fetch('/api/usuarios')
     if (res.ok) {
       const data = await res.json()
@@ -1562,6 +1604,18 @@ export default function AdminPanel() {
 
         {/* Cobranzas */}
         {tab === 'cobranzas' && (
+        <div className='space-y-4'>
+          <div className='flex justify-end'>
+            <Button 
+              onClick={limpiarHistorialCobranzas}
+              variant='outline'
+              className='border-red-300 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20'
+            >
+              🗑️ Limpiar Historial de Cobranzas
+            </Button>
+          </div>
+        </div>
+      )
           <div className="space-y-6">
             <Card>
               <CardHeader><CardTitle className="text-lg">➕ Nueva Cobranza</CardTitle></CardHeader>
@@ -1641,6 +1695,18 @@ export default function AdminPanel() {
 
         {/* Marketing */}
         {tab === 'marketing' && (
+        <div className='space-y-4'>
+          <div className='flex justify-end'>
+            <Button 
+              onClick={limpiarHistorialMarketing}
+              variant='outline'
+              className='border-red-300 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20'
+            >
+              🗑️ Limpiar Campañas Enviadas
+            </Button>
+          </div>
+        </div>
+      )
           <div className="space-y-6">
             <Card>
               <CardHeader><CardTitle className="text-lg">📣 Nueva Campaña</CardTitle></CardHeader>
