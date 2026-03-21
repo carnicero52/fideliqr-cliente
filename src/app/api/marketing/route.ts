@@ -128,11 +128,28 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-// DELETE - Eliminar campaña
+
+// DELETE - Eliminar campaña o limpiar historial
 export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
+    const accion = searchParams.get('accion')
+
+    // Limpiar historial de campañas enviadas
+    if (accion === 'limpiar-historial') {
+      const resultado = await db.marketing.deleteMany({
+        where: {
+          estado: 'enviado'
+        }
+      })
+      
+      return NextResponse.json({ 
+        success: true, 
+        eliminadas: resultado.count,
+        mensaje: `Se eliminaron ${resultado.count} campañas enviadas`
+      })
+    }
 
     if (!id) {
       return NextResponse.json({ error: 'ID requerido' }, { status: 400 })
@@ -144,11 +161,6 @@ export async function DELETE(request: NextRequest) {
 
     if (!campana) {
       return NextResponse.json({ error: 'Campaña no encontrada' }, { status: 404 })
-    }
-
-    // Solo permitir eliminar campañas programadas o canceladas
-    if (campana.estado === 'enviado') {
-      return NextResponse.json({ error: 'No se pueden eliminar campañas ya enviadas' }, { status: 400 })
     }
 
     await db.marketing.delete({
