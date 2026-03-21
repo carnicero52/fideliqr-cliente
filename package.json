@@ -1,7 +1,7 @@
 {
-  "name": "fideliqr-full-v1",
+  "name": "fideliqr-cliente",
   "version": "1.0.0",
-  "description": "Sistema de Fidelización con QR - Panel Público y Administrativo",
+  "description": "FideliQR Cliente - Sistema de Fidelización",
   "private": true,
   "scripts": {
     "dev": "next dev",
