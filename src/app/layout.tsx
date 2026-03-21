@@ -3,8 +3,8 @@ import './globals.css'
 import { ThemeProvider } from '@/components/ThemeProvider'
 
 export const metadata: Metadata = {
-  title: 'FideliQR - Sistema de Fidelización v2',
-  description: 'Sistema de fidelización de clientes con QR',
+  title: 'FideliQR Cliente - Sistema de Fidelización',
+  description: 'Sistema de fidelización de clientes con QR - El negocio escanea el QR del cliente',
 }
 
 export default function RootLayout({
