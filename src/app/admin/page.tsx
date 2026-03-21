@@ -1756,7 +1756,7 @@ export default function AdminPanel() {
 
       <footer className="bg-card border-t py-4 mt-8">
         <div className="max-w-6xl mx-auto px-4 text-center text-muted-foreground text-sm">
-          FideliQR V1 - Sistema de Fidelización | Panel de Administración
+          FideliQR Cliente - Sistema de Fidelización | Panel de Administración
         </div>
       </footer>
     </div>
